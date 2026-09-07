@@ -8,6 +8,27 @@ transiciones, y horario de encendido/apagado automático.
 - **Panel admin**: server-rendered con Jinja2 + HTMX + Alpine (sin build step).
 - **Kiosk**: Docker corre solo el backend; el navegador en modo kiosk se lanza en el host (ver `kiosk-setup/`).
 
+## Instalar Docker en la Raspberry Pi
+
+Si la Pi todavía no tiene Docker, instalalo con el script oficial (funciona en Raspberry Pi OS
+64-bit, tanto Desktop como Lite):
+
+```bash
+curl -fsSL https://get.docker.com -o get-docker.sh
+sudo sh get-docker.sh
+sudo usermod -aG docker $USER
+sudo systemctl enable --now docker
+```
+
+Cerrá sesión y volvé a entrar (o reiniciá) para que el grupo `docker` tome efecto y puedas correr
+`docker` sin `sudo`. El script ya incluye el plugin de Compose v2, así que `docker compose version`
+debería andar sin instalar nada más.
+
+El `enable --now` es importante: si Docker no queda habilitado para arrancar solo al bootear, el
+contenedor no vuelve a levantar después de un reinicio (aunque tenga `restart: unless-stopped` en
+`docker-compose.yml`), y vas a ver "site can't be reached" en el kiosk. Podés confirmarlo en
+cualquier momento con `systemctl is-enabled docker` (debe decir `enabled`).
+
 ## Quickstart (backend, vía Docker)
 
 ```bash
