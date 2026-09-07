@@ -1,0 +1,123 @@
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  width: 100vw;
+  height: 100vh;
+  background: #000;
+  overflow: hidden;
+  font-family: -apple-system, "Segoe UI", Roboto, sans-serif;
+  cursor: none;
+}
+
+#stage {
+  position: absolute;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+}
+
+body.orientation-portrait #stage {
+  top: 50%;
+  left: 50%;
+  width: 100vh;
+  height: 100vw;
+  transform: translate(-50%, -50%) rotate(90deg);
+}
+
+.layer {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0;
+  z-index: 1;
+}
+
+body.fit-contain .layer {
+  object-fit: contain;
+  background: #000;
+}
+
+.layer.active {
+  opacity: 1;
+  z-index: 2;
+}
+
+body.transition-fade .layer {
+  transition: opacity 900ms ease-in-out;
+}
+
+body.transition-slide .layer {
+  transition: transform 700ms ease-in-out, opacity 700ms ease-in-out;
+  transform: translateX(100%);
+}
+body.transition-slide .layer.active {
+  transform: translateX(0);
+}
+
+body.transition-none .layer {
+  transition: none;
+}
+
+#overlay {
+  position: absolute;
+  top: 1.5rem;
+  right: 2rem;
+  z-index: 10;
+  text-align: right;
+  color: #fff;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.7);
+  pointer-events: none;
+}
+
+.overlay-item {
+  margin-bottom: 0.25rem;
+}
+.overlay-item.hidden {
+  display: none;
+}
+
+#overlay-clock {
+  font-size: 2.5rem;
+  font-weight: 600;
+}
+#overlay-date {
+  font-size: 1.1rem;
+  text-transform: capitalize;
+  opacity: 0.9;
+}
+#overlay-weather {
+  font-size: 1.3rem;
+}
+
+#empty-state {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #888;
+  font-size: 1.3rem;
+  text-align: center;
+  padding: 2rem;
+}
+#empty-state.hidden {
+  display: none;
+}
+
+#blackout {
+  position: absolute;
+  inset: 0;
+  background: #000;
+  z-index: 20;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 1500ms ease-in-out;
+}
+#blackout.visible {
+  opacity: 1;
+  pointer-events: auto;
+}

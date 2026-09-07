@@ -1,0 +1,13 @@
+[Unit]
+Description=Photoframe screen on/off scheduler
+After=graphical-session.target
+
+[Service]
+Type=simple
+ExecStart=__SCREEN_SCHEDULE_SH_PATH__
+Environment=PHOTOFRAME_PORT=__PHOTOFRAME_PORT__
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=default.target

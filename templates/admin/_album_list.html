@@ -1,0 +1,24 @@
+<div id="album-list" class="album-list">
+  {% if not albums %}
+    <p class="muted">Todavía no creaste ningún álbum.</p>
+  {% endif %}
+  {% for album in albums %}
+  <form class="album-row" hx-patch="/admin/albums/{{ album.id }}" hx-target="#album-list" hx-swap="outerHTML">
+    <input type="text" name="name" value="{{ album.name }}">
+    <label class="checkbox-label">
+      <input type="checkbox" name="is_active" {% if album.is_active %}checked{% endif %}>
+      Activo
+    </label>
+    <span class="muted">{{ album.photos|length }} foto(s)</span>
+    <button type="submit">Guardar</button>
+    <a class="button-link" href="/admin/albums/{{ album.id }}">Gestionar fotos</a>
+    <button type="button" class="danger"
+            hx-delete="/admin/albums/{{ album.id }}"
+            hx-target="#album-list"
+            hx-swap="outerHTML"
+            hx-confirm="¿Borrar el álbum &quot;{{ album.name }}&quot;? Las fotos no se borran.">
+      Borrar álbum
+    </button>
+  </form>
+  {% endfor %}
+</div>

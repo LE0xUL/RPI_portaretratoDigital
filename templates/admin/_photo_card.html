@@ -1,0 +1,12 @@
+<figure class="photo-card">
+  <img src="/media/photos/thumb/{{ photo.filename }}.jpg" alt="{{ photo.original_filename }}" loading="lazy">
+  <figcaption>
+    <button class="danger"
+            hx-delete="/admin/photos/{{ photo.id }}"
+            hx-target="#photo-grid"
+            hx-swap="outerHTML"
+            hx-confirm="¿Borrar esta foto?">
+      Borrar
+    </button>
+  </figcaption>
+</figure>

@@ -1,0 +1,15 @@
+{% extends "admin/layout.html" %}
+{% block title %}Álbumes — Portarretrato{% endblock %}
+{% block admin_content %}
+<h1>Álbumes</h1>
+<p class="muted">Marcá como "activo" el/los álbum(es) que querés mostrar en el display. Si ninguno está activo, se muestran todas las fotos.</p>
+
+<form hx-post="/admin/albums" hx-target="#album-list" hx-swap="outerHTML" class="inline-form">
+  <input type="text" name="name" placeholder="Nombre del nuevo álbum" required>
+  <button type="submit">Crear álbum</button>
+</form>
+
+<div id="album-list">
+  {% include "admin/_album_list.html" %}
+</div>
+{% endblock %}

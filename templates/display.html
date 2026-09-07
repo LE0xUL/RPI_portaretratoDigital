@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Portarretrato</title>
+  <link rel="stylesheet" href="/static/css/display.css">
+</head>
+<body class="fit-cover orientation-landscape transition-fade">
+  <div id="stage">
+    <img id="layer-a" class="layer active" alt="">
+    <img id="layer-b" class="layer" alt="">
+  </div>
+
+  <div id="overlay">
+    <div id="overlay-clock" class="overlay-item hidden"></div>
+    <div id="overlay-date" class="overlay-item hidden"></div>
+    <div id="overlay-weather" class="overlay-item hidden"></div>
+  </div>
+
+  <div id="empty-state" class="hidden">
+    <p>Todavía no hay fotos. Subí algunas desde el panel de administración.</p>
+  </div>
+
+  <div id="blackout"></div>
+
+  <script src="/static/js/display.js"></script>
+</body>
+</html>

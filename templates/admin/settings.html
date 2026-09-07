@@ -1,0 +1,81 @@
+{% extends "admin/layout.html" %}
+{% block title %}Configuración — Portarretrato{% endblock %}
+{% block admin_content %}
+<h1>Configuración</h1>
+{% if saved %}<p class="success">Guardado.</p>{% endif %}
+
+<form method="post" action="/admin/settings" class="settings-form">
+  <fieldset>
+    <legend>Slideshow</legend>
+
+    <label>Intervalo entre fotos (segundos)
+      <input type="number" name="slideshow_interval_seconds" min="3" max="3600" value="{{ settings.slideshow_interval_seconds }}">
+    </label>
+
+    <label>Orden
+      <select name="slideshow_order">
+        <option value="sequential" {% if settings.slideshow_order == "sequential" %}selected{% endif %}>Secuencial</option>
+        <option value="random" {% if settings.slideshow_order == "random" %}selected{% endif %}>Aleatorio</option>
+      </select>
+    </label>
+
+    <label>Transición
+      <select name="transition_effect">
+        <option value="fade" {% if settings.transition_effect == "fade" %}selected{% endif %}>Fade</option>
+        <option value="slide" {% if settings.transition_effect == "slide" %}selected{% endif %}>Slide</option>
+        <option value="none" {% if settings.transition_effect == "none" %}selected{% endif %}>Ninguna</option>
+      </select>
+    </label>
+
+    <label>Ajuste de imagen
+      <select name="image_fit">
+        <option value="cover" {% if settings.image_fit == "cover" %}selected{% endif %}>Cover (llena la pantalla, recorta)</option>
+        <option value="contain" {% if settings.image_fit == "contain" %}selected{% endif %}>Contain (se ve completa)</option>
+      </select>
+    </label>
+
+    <label>Orientación
+      <select name="display_orientation">
+        <option value="landscape" {% if settings.display_orientation == "landscape" %}selected{% endif %}>Horizontal</option>
+        <option value="portrait" {% if settings.display_orientation == "portrait" %}selected{% endif %}>Vertical</option>
+      </select>
+    </label>
+  </fieldset>
+
+  <fieldset>
+    <legend>Overlays</legend>
+    <label class="checkbox-label"><input type="checkbox" name="show_clock" {% if settings.show_clock %}checked{% endif %}> Mostrar reloj</label>
+    <label class="checkbox-label"><input type="checkbox" name="show_date" {% if settings.show_date %}checked{% endif %}> Mostrar fecha</label>
+    <label class="checkbox-label"><input type="checkbox" name="show_weather" {% if settings.show_weather %}checked{% endif %}> Mostrar clima</label>
+
+    <label>Latitud
+      <input type="number" step="any" name="weather_latitude" value="{{ settings.weather_latitude if settings.weather_latitude is not none else '' }}">
+    </label>
+    <label>Longitud
+      <input type="number" step="any" name="weather_longitude" value="{{ settings.weather_longitude if settings.weather_longitude is not none else '' }}">
+    </label>
+    <label>Nombre del lugar (solo referencia)
+      <input type="text" name="weather_location_name" value="{{ settings.weather_location_name or '' }}">
+    </label>
+    <label>Unidades
+      <select name="weather_units">
+        <option value="metric" {% if settings.weather_units == "metric" %}selected{% endif %}>°C</option>
+        <option value="imperial" {% if settings.weather_units == "imperial" %}selected{% endif %}>°F</option>
+      </select>
+    </label>
+  </fieldset>
+
+  <fieldset>
+    <legend>Horario de encendido/apagado de pantalla</legend>
+    <label class="checkbox-label"><input type="checkbox" name="schedule_enabled" {% if settings.schedule_enabled %}checked{% endif %}> Activar horario</label>
+    <label>Apagar a las
+      <input type="time" name="schedule_off_time" value="{{ settings.schedule_off_time or '' }}">
+    </label>
+    <label>Encender a las
+      <input type="time" name="schedule_on_time" value="{{ settings.schedule_on_time or '' }}">
+    </label>
+  </fieldset>
+
+  <button type="submit">Guardar configuración</button>
+</form>
+{% endblock %}

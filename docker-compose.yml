@@ -1,0 +1,13 @@
+services:
+  photoframe:
+    build: .
+    container_name: photoframe
+    restart: unless-stopped
+    ports:
+      - "${PORT:-8080}:8080"
+    volumes:
+      - ./data:/app/data
+    env_file:
+      - .env
+    environment:
+      - TZ=${TZ:-UTC}

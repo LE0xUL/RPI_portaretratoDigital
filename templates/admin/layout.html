@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block body %}
+<div class="admin-shell">
+  <nav class="admin-nav">
+    <span class="brand">🖼️ Portarretrato</span>
+    <a href="/admin/photos">Fotos</a>
+    <a href="/admin/albums">Álbumes</a>
+    <a href="/admin/settings">Configuración</a>
+    <a href="/display" target="_blank">Ver display ↗</a>
+    <form method="post" action="/logout" class="logout-form">
+      <button type="submit">Salir</button>
+    </form>
+  </nav>
+  <main class="admin-main">
+    {% block admin_content %}{% endblock %}
+  </main>
+</div>
+{% endblock %}

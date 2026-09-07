@@ -1,0 +1,8 @@
+<div id="photo-grid" class="photo-grid">
+  {% if not photos %}
+    <p class="muted">Todavía no subiste ninguna foto.</p>
+  {% endif %}
+  {% for photo in photos %}
+    {% include "admin/_photo_card.html" %}
+  {% endfor %}
+</div>

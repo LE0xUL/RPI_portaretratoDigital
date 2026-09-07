@@ -1,0 +1,13 @@
+{% extends "admin/layout.html" %}
+{% block title %}{{ album.name if album else "Álbum" }} — Portarretrato{% endblock %}
+{% block admin_content %}
+{% if not album %}
+  <p class="error">Ese álbum ya no existe.</p>
+  <a href="/admin/albums">Volver a álbumes</a>
+{% else %}
+  <a href="/admin/albums" class="back-link">← Álbumes</a>
+  <h1>{{ album.name }}</h1>
+  <p class="muted">Tocá una foto para agregarla o quitarla de este álbum.</p>
+  {% include "admin/_album_photo_grid.html" %}
+{% endif %}
+{% endblock %}

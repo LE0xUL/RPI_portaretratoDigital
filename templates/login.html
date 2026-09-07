@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block title %}Iniciar sesión — Portarretrato{% endblock %}
+{% block body %}
+<div class="login-page">
+  <form class="login-card" method="post" action="/login">
+    <h1>Portarretrato Digital</h1>
+    <p class="muted">Ingresá el código de invitación para administrar las fotos.</p>
+    {% if error %}<p class="error">{{ error }}</p>{% endif %}
+    <input type="password" name="code" placeholder="Código de invitación" autofocus required>
+    <button type="submit">Entrar</button>
+  </form>
+</div>
+{% endblock %}
