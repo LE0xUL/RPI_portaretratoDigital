@@ -170,8 +170,8 @@ def update_settings(
     show_clock: bool = Form(False),
     show_date: bool = Form(False),
     show_weather: bool = Form(False),
-    weather_latitude: float | None = Form(None),
-    weather_longitude: float | None = Form(None),
+    weather_latitude: str | None = Form(None),
+    weather_longitude: str | None = Form(None),
     weather_location_name: str | None = Form(None),
     weather_units: str = Form("metric"),
     schedule_enabled: bool = Form(False),
@@ -188,8 +188,8 @@ def update_settings(
     settings_row.show_clock = show_clock
     settings_row.show_date = show_date
     settings_row.show_weather = show_weather
-    settings_row.weather_latitude = weather_latitude
-    settings_row.weather_longitude = weather_longitude
+    settings_row.weather_latitude = float(weather_latitude) if weather_latitude else None
+    settings_row.weather_longitude = float(weather_longitude) if weather_longitude else None
     settings_row.weather_location_name = weather_location_name
     settings_row.weather_units = weather_units
     settings_row.schedule_enabled = schedule_enabled

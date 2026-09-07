@@ -109,6 +109,28 @@ def test_settings_roundtrip(admin_client):
     assert state["settings"]["show_weather"] is True
 
 
+def test_settings_with_empty_optional_number_fields(admin_client):
+    # Un navegador real manda "" (no omite el campo) cuando un <input type="number">
+    # queda vacío; esto no debe romper el parseo de weather_latitude/longitude.
+    resp = admin_client.post(
+        "/admin/settings",
+        data={
+            "slideshow_interval_seconds": 15,
+            "slideshow_order": "sequential",
+            "transition_effect": "fade",
+            "image_fit": "cover",
+            "display_orientation": "landscape",
+            "weather_latitude": "",
+            "weather_longitude": "",
+            "weather_units": "metric",
+        },
+    )
+    assert resp.status_code == 200
+
+    state = admin_client.get("/api/display/state").json()
+    assert state["settings"]["show_weather"] is False
+
+
 def test_weather_endpoint_returns_204_without_coordinates(admin_client):
     admin_client.post(
         "/admin/settings",
