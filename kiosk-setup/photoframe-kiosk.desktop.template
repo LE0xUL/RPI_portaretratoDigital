@@ -1,6 +1,6 @@
 [Desktop Entry]
 Type=Application
 Name=Photoframe Kiosk
-Exec=__KIOSK_SH_PATH__
+Exec=/usr/bin/env PHOTOFRAME_PORT=__PHOTOFRAME_PORT__ __KIOSK_SH_PATH__
 X-GNOME-Autostart-enabled=true
 NoDisplay=false

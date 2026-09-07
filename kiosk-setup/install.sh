@@ -5,7 +5,17 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(dirname "$SCRIPT_DIR")"
+
+# Si no se pasó PHOTOFRAME_PORT explícitamente, lo tomamos del PORT= del .env
+# de la raíz del repo (el mismo que usa docker-compose.yml), para no tener que
+# repetirlo a mano y evitar que kiosk/screen-schedule apunten a un puerto distinto
+# del que realmente expone el contenedor.
+if [ -z "${PHOTOFRAME_PORT:-}" ] && [ -f "$REPO_ROOT/.env" ]; then
+  PHOTOFRAME_PORT="$(grep -E '^PORT=' "$REPO_ROOT/.env" | tail -1 | cut -d= -f2-)"
+fi
 PORT="${PHOTOFRAME_PORT:-8080}"
+echo "Usando PHOTOFRAME_PORT=$PORT"
 
 if [ "$EUID" -eq 0 ]; then
   echo "No corras este script con sudo/root. Se instala para el usuario actual." >&2
@@ -23,7 +33,9 @@ chmod +x "$SCRIPT_DIR/kiosk.sh" "$SCRIPT_DIR/screen-schedule.sh"
 # --- Autostart de Chromium en modo kiosk (XDG autostart, funciona en X11 y Wayfire/labwc) ---
 AUTOSTART_DIR="$HOME/.config/autostart"
 mkdir -p "$AUTOSTART_DIR"
-sed "s|__KIOSK_SH_PATH__|$SCRIPT_DIR/kiosk.sh|" \
+sed \
+  -e "s|__KIOSK_SH_PATH__|$SCRIPT_DIR/kiosk.sh|" \
+  -e "s|__PHOTOFRAME_PORT__|$PORT|" \
   "$SCRIPT_DIR/photoframe-kiosk.desktop.template" > "$AUTOSTART_DIR/photoframe-kiosk.desktop"
 echo "Autostart instalado en $AUTOSTART_DIR/photoframe-kiosk.desktop"
 
