@@ -39,6 +39,19 @@ comandos.
 - La vista `/display` ya pone la pantalla en negro por su cuenta (JS + polling), sin depender de nada de esto — funciona incluso si nunca corrés `install.sh` (útil para probar en una laptop).
 - `screen-schedule.sh` va un paso más allá y apaga la señal HDMI de verdad con `vcgencmd display_power` (ahorra energía real y reduce desgaste de pantalla), con algo más de latencia (hasta 60s) respecto al negro en pantalla.
 
+## Modo de bajo consumo de CPU
+
+En el mismo cambio de estado que apaga/prende la pantalla, `screen-schedule.sh` también baja la
+frecuencia de la CPU (gobernador `powersave` + tope de frecuencia al mínimo del hardware) fuera
+del horario activo, vía `cpu-throttle-apply.sh` (corrido con `sudo`, habilitado por la misma regla
+de sudoers que el menú de apagado). Al volver el horario activo, restaura exactamente el
+gobernador y la frecuencia máxima que tenía antes — no asume un valor fijo, porque el gobernador
+por defecto varía entre versiones de Raspberry Pi OS (`ondemand` vs `schedutil`).
+
+Esto **no** apaga la CPU (eso requeriría hardware adicional — ver la sección de energía en el
+README principal); reduce el consumo mientras la Pi sigue prendida y respondiendo, mucho menos que
+lo que ahorra apagar la pantalla, pero sin necesidad de nada externo.
+
 ## Menú de apagado táctil (3 toques)
 
 En `/display`, tocar 3 veces (en menos de 1.5s) la esquina superior izquierda de la pantalla abre
@@ -98,6 +111,7 @@ Para desactivarlo:
 
 - **Chromium no arranca al bootear**: revisá que `~/.config/autostart/photoframe-kiosk.desktop` exista y que el auto-login gráfico esté activo (`sudo raspi-config` → System Options → Boot / Auto Login → Desktop Autologin).
 - **La pantalla no se apaga/prende con el horario**: `journalctl --user -u photoframe-screen.service -f`. Confirmá que `vcgencmd` existe (`which vcgencmd`) — es específico de Raspberry Pi OS.
+- **La CPU no baja de frecuencia fuera de horario**: `cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor` debería decir `powersave` durante el horario apagado. Si sigue en el gobernador normal, corré `sudo /ruta/kiosk-setup/cpu-throttle-apply.sh low` a mano y fijate si tira error de permisos (la regla de sudoers no quedó bien instalada — volvé a correr `install.sh`).
 - **El menú de apagado no hace nada**: `journalctl --user -u photoframe-power.service -f` mientras tocás el menú. Si dice `sudo: a password is required`, la regla de `/etc/sudoers.d/photoframe-power` no quedó bien instalada — corré `sudo visudo -c` para validarla, o volvé a correr `install.sh`.
 - **El USB no se importa**: `journalctl --user -u photoframe-usb-import.service -f`. Confirmá que la unidad quedó montada bajo `/media/<tu usuario>/<algo>` (`ls /media/$USER`) — si tu file manager la monta en otro lado, el script no la va a encontrar.
 - **Orientación portrait rara**: el fallback CSS (rotación vía `transform`) funciona, pero para mejores resultados rotá la pantalla a nivel sistema (`xrandr` en X11, o la config del compositor en Wayfire) y dejá `display_orientation=landscape` en settings.

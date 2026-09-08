@@ -1,9 +1,12 @@
 #!/usr/bin/env bash
 # Consulta periódicamente al backend si la pantalla debería estar encendida
-# (según el horario configurado en /admin/settings) y apaga/prende la señal
-# HDMI real. Corre como servicio systemd --user (ver photoframe-screen.service).
+# (según el horario configurado en /admin/settings), apaga/prende la señal
+# HDMI real, y de paso baja/restaura la frecuencia de CPU (modo de bajo
+# consumo) en el mismo cambio de estado. Corre como servicio systemd --user
+# (ver photoframe-screen.service).
 set -u
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PORT="${PHOTOFRAME_PORT:-8080}"
 STATUS_URL="http://localhost:${PORT}/api/display/screen-status"
 POLL_SECONDS=60
@@ -18,15 +21,19 @@ set_power() {
     else
       vcgencmd display_power 0 >/dev/null 2>&1
     fi
-    return
-  fi
-  # Fallback para X11 genérico (no funciona en el compositor Wayland default de RPi OS)
-  if command -v xset >/dev/null 2>&1; then
+  elif command -v xset >/dev/null 2>&1; then
+    # Fallback para X11 genérico (no funciona en el compositor Wayland default de RPi OS)
     if [ "$on" = "true" ]; then
       xset dpms force on
     else
       xset dpms force off
     fi
+  fi
+
+  if [ "$on" = "true" ]; then
+    sudo "$SCRIPT_DIR/cpu-throttle-apply.sh" normal 2>/dev/null || true
+  else
+    sudo "$SCRIPT_DIR/cpu-throttle-apply.sh" low 2>/dev/null || true
   fi
 }
 

@@ -28,23 +28,26 @@ if ! command -v chromium >/dev/null 2>&1 && ! command -v chromium-browser >/dev/
   sudo apt-get install -y chromium-browser || sudo apt-get install -y chromium
 fi
 
-chmod +x "$SCRIPT_DIR/kiosk.sh" "$SCRIPT_DIR/screen-schedule.sh" "$SCRIPT_DIR/power-listener.sh"
+chmod +x "$SCRIPT_DIR/kiosk.sh" "$SCRIPT_DIR/screen-schedule.sh" "$SCRIPT_DIR/power-listener.sh" \
+  "$SCRIPT_DIR/cpu-throttle-apply.sh"
 
-# --- Regla de sudoers acotada: SOLO shutdown/reboot, sin contraseña, para este usuario.
-# Necesaria para que el menú de apagado del /display (3 toques) funcione sin pedir
-# contraseña. No es un "sudo sin restricciones": el propio archivo limita los
-# comandos exactos que se pueden correr.
+# --- Regla de sudoers acotada, sin contraseña, para este usuario:
+#   - /sbin/shutdown y /sbin/reboot: para el menú de apagado del /display (3 toques).
+#   - cpu-throttle-apply.sh low|normal: para bajar/restaurar la frecuencia de CPU
+#     fuera del horario activo (modo de bajo consumo, junto con la pantalla).
+# No es un "sudo sin restricciones": el propio archivo limita los comandos
+# exactos (con sus argumentos exactos) que se pueden correr.
 SUDOERS_FILE="/etc/sudoers.d/photoframe-power"
-SUDOERS_LINE="$USER ALL=(root) NOPASSWD: /sbin/shutdown, /sbin/reboot"
-if [ ! -f "$SUDOERS_FILE" ] || ! grep -qF "$SUDOERS_LINE" "$SUDOERS_FILE" 2>/dev/null; then
-  echo "$SUDOERS_LINE" | sudo tee "$SUDOERS_FILE" >/dev/null
+SUDOERS_CONTENT="$USER ALL=(root) NOPASSWD: /sbin/shutdown, /sbin/reboot, $SCRIPT_DIR/cpu-throttle-apply.sh low, $SCRIPT_DIR/cpu-throttle-apply.sh normal"
+if [ ! -f "$SUDOERS_FILE" ] || ! grep -qF "$SUDOERS_CONTENT" "$SUDOERS_FILE" 2>/dev/null; then
+  echo "$SUDOERS_CONTENT" | sudo tee "$SUDOERS_FILE" >/dev/null
   sudo chmod 0440 "$SUDOERS_FILE"
   sudo visudo -c -f "$SUDOERS_FILE" >/dev/null || {
     echo "La regla de sudoers generada no es válida, revirtiendo." >&2
     sudo rm -f "$SUDOERS_FILE"
     exit 1
   }
-  echo "Regla de sudoers instalada en $SUDOERS_FILE (solo shutdown/reboot, sin password)."
+  echo "Regla de sudoers instalada en $SUDOERS_FILE (shutdown/reboot/cpu-throttle, sin password)."
 fi
 
 # --- Autostart de Chromium en modo kiosk (XDG autostart, funciona en X11 y Wayfire/labwc) ---

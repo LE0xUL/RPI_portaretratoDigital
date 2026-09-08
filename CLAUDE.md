@@ -89,6 +89,16 @@ off=22:00 → on=07:00). It's consumed by:
    and calls `vcgencmd display_power 0/1` to actually cut the HDMI signal — real power savings, but
    only verifiable on real Raspberry Pi hardware (`vcgencmd` doesn't exist elsewhere).
 
+On the same state change, `screen-schedule.sh` also calls `sudo kiosk-setup/cpu-throttle-apply.sh
+low|normal` to drop the CPU governor to `powersave` (capped at the hardware's min frequency) during
+off-hours. There is no way to fully power off the SoC and have it wake itself on a schedule — no
+RTC wake-alarm on stock Pi hardware, no reliable suspend-to-RAM — so this is the software-only
+ceiling; true near-zero consumption would need external hardware (a scheduled smart plug) cutting
+supply power, which is out of scope here. `cpu-throttle-apply.sh` saves each CPU core's *current*
+governor to `/run/photoframe-cpu-governor.orig` before switching to `powersave`, and restores the
+exact saved value on `normal` — it deliberately does not hardcode a governor name to restore to,
+since the RPi OS default varies by kernel version (`ondemand` vs `schedutil`).
+
 ### Privileged actions (shutdown/reboot/hide) use a one-shot pending-action queue
 
 The touch menu on `/display` (3 taps in the top-left corner) needs to run `shutdown`/`reboot`,
