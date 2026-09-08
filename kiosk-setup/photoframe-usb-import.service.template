@@ -1,0 +1,12 @@
+[Unit]
+Description=Photoframe USB photo auto-import
+After=graphical-session.target
+
+[Service]
+Type=simple
+ExecStart=__USB_IMPORT_SH_PATH__
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=default.target

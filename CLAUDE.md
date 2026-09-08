@@ -109,6 +109,22 @@ that file before its normal 5-second auto-relaunch and sleeps until the timestam
 of `/display` (LAN-only, and physical access to the touchscreen already means physical access to
 the Pi's power cable).
 
+### USB auto-import reuses the existing upload endpoint, no new backend code
+
+`kiosk-setup/usb-import.sh` (optional, installed separately via `install-usb-import.sh`, not part
+of the main `install.sh`) is a fourth instance of the Docker/host boundary: Docker can't see USB
+drives the desktop mounts after the container started, so this is a host-side loop that scans
+`/media/*/*` and `/mnt/*` every 15s and uploads new image files by literally driving the same
+HTTP flow a browser would — `POST /login` with `INVITE_CODE` read live from `.env`, then
+`POST /admin/photos` with a cookie jar. Dedup is by `sha256sum`, tracked in
+`~/.local/state/photoframe/usb-imported.tsv` (host-side state, deliberately outside `data/` since
+it's the script's own bookkeeping, not app data). **Non-obvious gotcha**: `AdminAuthRequired`
+responds with a 303 redirect (not 4xx) for non-HTMX requests, so checking success via `curl -f`
+silently lies — a 303 "succeeds" from curl's point of view even though nothing was uploaded. Both
+`login()` and `upload_file()` in that script must check the exact HTTP status code
+(`curl -s -o /dev/null -w '%{http_code}'`) instead. If you add more host scripts that call
+authenticated endpoints, replicate that pattern, not a bare `curl -f`.
+
 ### Environment settings are read at import time
 
 `app/config.py` instantiates `settings = Settings()` (pydantic-settings) at module import time and

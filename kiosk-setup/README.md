@@ -65,9 +65,39 @@ cd kiosk-setup
 ./uninstall.sh
 ```
 
+## Auto-import de fotos por USB (opcional)
+
+Esto **no** se instala con `install.sh` — es aparte, a propósito: una vez activo, cualquier USB
+que conectes a la Pi va a tener sus fotos subidas automáticamente a la biblioteca. Si vas a usar
+esa USB para otras cosas también, pensalo antes de instalarlo.
+
+```bash
+cd kiosk-setup
+./install-usb-import.sh
+```
+
+Cómo funciona: `usb-import.sh` corre como servicio (`photoframe-usb-import.service`) y cada 15s
+revisa `/media/<usuario>/*` y `/mnt/*` (donde Raspberry Pi OS Desktop automonta las USB) buscando
+`.jpg/.jpeg/.png/.bmp/.tiff/.webp`. Los archivos nuevos se suben vía el mismo endpoint que usa el
+panel admin (`POST /admin/photos`, autenticándose con el `INVITE_CODE` de tu `.env`), quedan
+etiquetados como `USB-<nombre del volumen>__<nombre original>` para que se note de dónde vinieron,
+y **no se borra nada de la USB**. Para no re-subir lo mismo cada vez que reconectás el mismo
+pendrive, se guarda un historial de checksums en `~/.local/state/photoframe/usb-imported.tsv`.
+
+Como todo lo demás acá, esto también cruza la frontera Docker→host: el contenedor no ve unidades
+montadas después de que arrancó (salvo configuración especial y frágil de propagación de mounts),
+así que el script vive en el host y sube los archivos por HTTP, igual que si los arrastraras vos
+al panel admin.
+
+Para desactivarlo:
+```bash
+./uninstall-usb-import.sh
+```
+
 ## Troubleshooting
 
 - **Chromium no arranca al bootear**: revisá que `~/.config/autostart/photoframe-kiosk.desktop` exista y que el auto-login gráfico esté activo (`sudo raspi-config` → System Options → Boot / Auto Login → Desktop Autologin).
 - **La pantalla no se apaga/prende con el horario**: `journalctl --user -u photoframe-screen.service -f`. Confirmá que `vcgencmd` existe (`which vcgencmd`) — es específico de Raspberry Pi OS.
 - **El menú de apagado no hace nada**: `journalctl --user -u photoframe-power.service -f` mientras tocás el menú. Si dice `sudo: a password is required`, la regla de `/etc/sudoers.d/photoframe-power` no quedó bien instalada — corré `sudo visudo -c` para validarla, o volvé a correr `install.sh`.
+- **El USB no se importa**: `journalctl --user -u photoframe-usb-import.service -f`. Confirmá que la unidad quedó montada bajo `/media/<tu usuario>/<algo>` (`ls /media/$USER`) — si tu file manager la monta en otro lado, el script no la va a encontrar.
 - **Orientación portrait rara**: el fallback CSS (rotación vía `transform`) funciona, pero para mejores resultados rotá la pantalla a nivel sistema (`xrandr` en X11, o la config del compositor en Wayfire) y dejá `display_orientation=landscape` en settings.
