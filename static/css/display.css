@@ -121,3 +121,58 @@ body.transition-none .layer {
   opacity: 1;
   pointer-events: auto;
 }
+
+/* Zona invisible para el gesto de 3 toques que abre el menú de apagado.
+   Esquina superior izquierda: lo bastante grande para tocarla a propósito,
+   lejos del centro donde se mira el slideshow. */
+#tap-zone {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 20vw;
+  height: 20vh;
+  z-index: 25;
+}
+
+#power-menu {
+  position: absolute;
+  inset: 0;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.6);
+}
+#power-menu.hidden {
+  display: none;
+}
+
+.power-menu-box {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+  background: #1c1e21;
+  border-radius: 14px;
+  padding: 2rem 2.5rem;
+  min-width: 260px;
+}
+
+.power-menu-box button {
+  font-size: 1.1rem;
+  padding: 0.9rem 1.2rem;
+  border-radius: 8px;
+  border: 1px solid #444;
+  background: #2c2e33;
+  color: #fff;
+  cursor: pointer;
+}
+.power-menu-box button.danger {
+  border-color: #e0483e;
+  background: #4a1f1c;
+}
+.power-menu-box p {
+  color: #fff;
+  font-size: 1.2rem;
+  text-align: center;
+  margin: 0;
+}

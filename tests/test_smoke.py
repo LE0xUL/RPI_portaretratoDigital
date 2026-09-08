@@ -146,3 +146,30 @@ def test_weather_endpoint_returns_204_without_coordinates(admin_client):
     )
     resp = admin_client.get("/api/display/weather")
     assert resp.status_code == 204
+
+
+def test_display_page_includes_power_menu(client):
+    resp = client.get("/display")
+    assert "tap-zone" in resp.text
+    assert "power-menu" in resp.text
+
+
+def test_power_action_is_consumed_once(client):
+    # nada pendiente todavía
+    assert client.get("/api/display/power-status").json()["action"] is None
+
+    resp = client.post("/api/display/power-action", json={"action": "hide", "hide_seconds": 30})
+    assert resp.status_code == 200
+
+    # el primer poll del host la ve y la consume...
+    status = client.get("/api/display/power-status").json()
+    assert status == {"action": "hide", "hide_seconds": 30}
+
+    # ...un segundo poll ya no debe repetirla
+    status_again = client.get("/api/display/power-status").json()
+    assert status_again["action"] is None
+
+
+def test_power_action_rejects_unknown_action(client):
+    resp = client.post("/api/display/power-action", json={"action": "reformat-disk"})
+    assert resp.status_code == 422

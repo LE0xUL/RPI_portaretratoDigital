@@ -1,3 +1,5 @@
+from typing import Literal
+
 from pydantic import BaseModel
 
 
@@ -35,3 +37,13 @@ class WeatherOut(BaseModel):
 
 class ScreenStatusOut(BaseModel):
     screen_on: bool
+
+
+class PowerActionIn(BaseModel):
+    action: Literal["shutdown", "reboot", "hide"]
+    hide_seconds: int | None = None
+
+
+class PowerStatusOut(BaseModel):
+    action: Literal["shutdown", "reboot", "hide"] | None
+    hide_seconds: int | None = None

@@ -28,7 +28,24 @@ if ! command -v chromium >/dev/null 2>&1 && ! command -v chromium-browser >/dev/
   sudo apt-get install -y chromium-browser || sudo apt-get install -y chromium
 fi
 
-chmod +x "$SCRIPT_DIR/kiosk.sh" "$SCRIPT_DIR/screen-schedule.sh"
+chmod +x "$SCRIPT_DIR/kiosk.sh" "$SCRIPT_DIR/screen-schedule.sh" "$SCRIPT_DIR/power-listener.sh"
+
+# --- Regla de sudoers acotada: SOLO shutdown/reboot, sin contraseña, para este usuario.
+# Necesaria para que el menú de apagado del /display (3 toques) funcione sin pedir
+# contraseña. No es un "sudo sin restricciones": el propio archivo limita los
+# comandos exactos que se pueden correr.
+SUDOERS_FILE="/etc/sudoers.d/photoframe-power"
+SUDOERS_LINE="$USER ALL=(root) NOPASSWD: /sbin/shutdown, /sbin/reboot"
+if [ ! -f "$SUDOERS_FILE" ] || ! grep -qF "$SUDOERS_LINE" "$SUDOERS_FILE" 2>/dev/null; then
+  echo "$SUDOERS_LINE" | sudo tee "$SUDOERS_FILE" >/dev/null
+  sudo chmod 0440 "$SUDOERS_FILE"
+  sudo visudo -c -f "$SUDOERS_FILE" >/dev/null || {
+    echo "La regla de sudoers generada no es válida, revirtiendo." >&2
+    sudo rm -f "$SUDOERS_FILE"
+    exit 1
+  }
+  echo "Regla de sudoers instalada en $SUDOERS_FILE (solo shutdown/reboot, sin password)."
+fi
 
 # --- Autostart de Chromium en modo kiosk (XDG autostart, funciona en X11 y Wayfire/labwc) ---
 AUTOSTART_DIR="$HOME/.config/autostart"
@@ -47,9 +64,17 @@ sed \
   -e "s|__PHOTOFRAME_PORT__|$PORT|" \
   "$SCRIPT_DIR/photoframe-screen.service.template" > "$SYSTEMD_USER_DIR/photoframe-screen.service"
 
+
+# --- Servicio systemd --user para el listener del menú de apagado (3 toques en /display) ---
+sed \
+  -e "s|__POWER_LISTENER_SH_PATH__|$SCRIPT_DIR/power-listener.sh|" \
+  -e "s|__PHOTOFRAME_PORT__|$PORT|" \
+  "$SCRIPT_DIR/photoframe-power.service.template" > "$SYSTEMD_USER_DIR/photoframe-power.service"
+
 systemctl --user daemon-reload
 systemctl --user enable --now photoframe-screen.service
-echo "Servicio photoframe-screen.service habilitado."
+systemctl --user enable --now photoframe-power.service
+echo "Servicios photoframe-screen.service y photoframe-power.service habilitados."
 
 cat <<EOF
 
@@ -58,6 +83,10 @@ Listo. Para que el kiosk arranque, cerrá sesión y volvé a entrar (o reiniciá
 Si tenés habilitado el auto-login gráfico, esto alcanza. Si no, activalo desde
 raspi-config (System Options > Boot / Auto Login > Desktop Autologin).
 
-Para ver logs del scheduler de pantalla:
+En el /display, 3 toques en la esquina superior izquierda abren el menú de
+Apagar / Reiniciar / Ocultar 2 min.
+
+Para ver logs:
   journalctl --user -u photoframe-screen.service -f
+  journalctl --user -u photoframe-power.service -f
 EOF

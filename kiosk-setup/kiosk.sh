@@ -23,6 +23,10 @@ fi
 
 CHROMIUM_BIN="$(command -v chromium || command -v chromium-browser)"
 
+# Si power-listener.sh pidió "ocultar N segundos" (menú de apagado del display),
+# deja esta marca con el timestamp hasta el cual no hay que relanzar Chromium.
+SUPPRESS_FILE="/tmp/photoframe-kiosk-suppress-until"
+
 while true; do
   "$CHROMIUM_BIN" \
     --kiosk "--app=${URL}" \
@@ -34,5 +38,15 @@ while true; do
     --check-for-update-interval=31536000 \
     --autoplay-policy=no-user-gesture-required \
     --overscroll-history-navigation=0
-  sleep 5
+
+  if [ -f "$SUPPRESS_FILE" ]; then
+    until_ts="$(cat "$SUPPRESS_FILE" 2>/dev/null || echo 0)"
+    remaining=$(( until_ts - $(date +%s) ))
+    rm -f "$SUPPRESS_FILE"
+    if [ "$remaining" -gt 0 ]; then
+      sleep "$remaining"
+    fi
+  else
+    sleep 5
+  fi
 done

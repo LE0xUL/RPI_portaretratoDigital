@@ -160,6 +160,67 @@
     }
   }
 
+  // --- Menú de apagado: 3 toques en la esquina superior izquierda ---
+  const TAP_COUNT = 3;
+  const TAP_WINDOW_MS = 1500;
+  const MENU_AUTO_DISMISS_MS = 10_000;
+
+  const tapZone = document.getElementById("tap-zone");
+  const powerMenu = document.getElementById("power-menu");
+  let tapTimes = [];
+  let menuDismissTimer = null;
+
+  function openPowerMenu() {
+    powerMenu.classList.remove("hidden");
+    if (menuDismissTimer) clearTimeout(menuDismissTimer);
+    menuDismissTimer = setTimeout(closePowerMenu, MENU_AUTO_DISMISS_MS);
+  }
+
+  function closePowerMenu() {
+    powerMenu.classList.add("hidden");
+    if (menuDismissTimer) clearTimeout(menuDismissTimer);
+  }
+
+  async function sendPowerAction(action, extra) {
+    try {
+      await fetch("/api/display/power-action", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action, ...extra }),
+      });
+    } catch (err) {
+      // silencioso: si falla, el usuario puede reintentar tocando de nuevo
+    }
+  }
+
+  tapZone.addEventListener("click", () => {
+    const now = Date.now();
+    tapTimes = tapTimes.filter((t) => now - t < TAP_WINDOW_MS);
+    tapTimes.push(now);
+    if (tapTimes.length >= TAP_COUNT) {
+      tapTimes = [];
+      openPowerMenu();
+    }
+  });
+
+  document.getElementById("power-hide").addEventListener("click", () => {
+    sendPowerAction("hide", { hide_seconds: 120 });
+    closePowerMenu();
+  });
+
+  document.getElementById("power-reboot").addEventListener("click", () => {
+    sendPowerAction("reboot", {});
+    powerMenu.querySelector(".power-menu-box").innerHTML = "<p>Reiniciando…</p>";
+  });
+
+  document.getElementById("power-shutdown").addEventListener("click", () => {
+    sendPowerAction("shutdown", {});
+    powerMenu.querySelector(".power-menu-box").innerHTML =
+      "<p>Apagando… esperá unos segundos antes de desconectar la Pi.</p>";
+  });
+
+  document.getElementById("power-cancel").addEventListener("click", closePowerMenu);
+
   applySettingsToDom();
   restartMainTimer();
   poll();

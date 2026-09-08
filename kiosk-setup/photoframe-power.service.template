@@ -1,0 +1,13 @@
+[Unit]
+Description=Photoframe power menu listener (shutdown/reboot/hide desde el display)
+After=graphical-session.target
+
+[Service]
+Type=simple
+ExecStart=__POWER_LISTENER_SH_PATH__
+Environment=PHOTOFRAME_PORT=__PHOTOFRAME_PORT__
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=default.target

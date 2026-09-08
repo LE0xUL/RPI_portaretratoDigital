@@ -89,6 +89,26 @@ off=22:00 → on=07:00). It's consumed by:
    and calls `vcgencmd display_power 0/1` to actually cut the HDMI signal — real power savings, but
    only verifiable on real Raspberry Pi hardware (`vcgencmd` doesn't exist elsewhere).
 
+### Privileged actions (shutdown/reboot/hide) use a one-shot pending-action queue
+
+The touch menu on `/display` (3 taps in the top-left corner) needs to run `shutdown`/`reboot`,
+which the container can't do either — same Docker/host boundary as the screen schedule, but here
+the trigger direction is reversed (browser → backend → host, instead of host polling a
+schedule computed from settings). `app/power.py` holds a single in-memory pending action
+(`request_action()` / `consume_pending_action()`, guarded by a `threading.Lock`, fine only because
+the app runs as a single uvicorn process/worker — don't add `--workers` without rethinking this).
+`POST /api/display/power-action` sets it; `GET /api/display/power-status` returns-and-clears it
+(one-shot, so `kiosk-setup/power-listener.sh` polling every 2s doesn't re-trigger the same action).
+For `shutdown`/`reboot`, the listener runs `sudo shutdown`/`sudo reboot`, enabled by a
+sudoers rule installed by `install.sh` (`/etc/sudoers.d/photoframe-power`, scoped to exactly those
+two commands — never broaden it). For `hide` (temporarily close the kiosk browser without
+stranding a touch-only device with no way back in), the listener kills Chromium and writes a
+timestamp to `/tmp/photoframe-kiosk-suppress-until`; `kiosk-setup/kiosk.sh`'s relaunch loop checks
+that file before its normal 5-second auto-relaunch and sleeps until the timestamp instead. Neither
+`power-action` nor `power-status` requires the invite-code auth — same trust boundary as the rest
+of `/display` (LAN-only, and physical access to the touchscreen already means physical access to
+the Pi's power cable).
+
 ### Environment settings are read at import time
 
 `app/config.py` instantiates `settings = Settings()` (pydantic-settings) at module import time and

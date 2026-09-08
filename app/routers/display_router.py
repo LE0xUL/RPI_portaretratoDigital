@@ -9,7 +9,9 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.models import Album, Photo, Settings
+from app.power import consume_pending_action, request_action
 from app.schedule import compute_screen_on
+from app.schemas import PowerActionIn
 from app.weather import get_weather
 
 router = APIRouter()
@@ -107,3 +109,17 @@ def display_screen_status(db: Session = Depends(get_db)):
             datetime.now(),
         )
     }
+
+
+@router.post("/api/display/power-action")
+def post_power_action(payload: PowerActionIn):
+    request_action(payload.action, payload.hide_seconds)
+    return {"ok": True}
+
+
+@router.get("/api/display/power-status")
+def get_power_status():
+    pending = consume_pending_action()
+    if pending is None:
+        return {"action": None, "hide_seconds": None}
+    return pending
