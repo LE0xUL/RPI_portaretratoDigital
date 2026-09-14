@@ -3,10 +3,11 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
 from app.auth import clear_session_cookie, create_session_cookie
-from app.config import settings
+from app.config import ASSET_VERSION, settings
 
 router = APIRouter()
 templates = Jinja2Templates(directory="templates")
+templates.env.globals["asset_version"] = ASSET_VERSION
 
 
 @router.get("/login", response_class=HTMLResponse)

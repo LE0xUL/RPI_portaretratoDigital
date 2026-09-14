@@ -1,6 +1,12 @@
+import time
 from pathlib import Path
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+# Cache-busting para /static/*: se recalcula en cada arranque del proceso, así
+# un `docker compose up -d --build` (o un reload en dev) siempre sirve CSS/JS
+# frescos en vez de lo que el navegador tenga cacheado.
+ASSET_VERSION = str(int(time.time()))
 
 
 class Settings(BaseSettings):

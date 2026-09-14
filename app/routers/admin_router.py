@@ -5,6 +5,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.auth import require_admin
+from app.config import ASSET_VERSION
 from app.database import get_db
 from app.image_utils import delete_photo_files, save_upload
 from app.models import Album, Photo, Settings
@@ -12,6 +13,7 @@ from app.routers.display_router import _active_photos
 
 router = APIRouter(prefix="/admin", dependencies=[Depends(require_admin)])
 templates = Jinja2Templates(directory="templates")
+templates.env.globals["asset_version"] = ASSET_VERSION
 
 TRANSITION_EFFECTS = {"none", "fade", "slide", "slide-up", "zoom-in", "zoom-out", "blur"}
 

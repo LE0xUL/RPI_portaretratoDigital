@@ -35,20 +35,15 @@
     {% endif %}
   {% else %}
     <form id="upload-form"
-          hx-post="/admin/photos"
-          hx-target="#album-photo-grid"
-          hx-swap="outerHTML"
-          hx-encoding="multipart/form-data"
           x-data="{ dragging: false }"
           @dragover.prevent="dragging = true"
           @dragleave.prevent="dragging = false"
-          @drop.prevent="dragging = false; $refs.fileInput.files = $event.dataTransfer.files; htmx.trigger('#upload-form', 'submit')"
+          @drop.prevent="dragging = false; window.pfUploadFiles($event.dataTransfer.files, {{ album.id }})"
           class="dropzone"
           :class="{ 'dropzone--active': dragging }">
-      <input type="hidden" name="album_id" value="{{ album.id }}">
       <label>
         <input type="file" name="files" multiple accept="image/*" x-ref="fileInput"
-               @change="htmx.trigger('#upload-form', 'submit')" hidden>
+               @change="window.pfUploadFiles($event.target.files, {{ album.id }}); $event.target.value = ''" hidden>
         <span>Arrastrá fotos acá, o hacé clic para elegirlas</span>
       </label>
     </form>

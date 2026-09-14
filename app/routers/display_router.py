@@ -7,6 +7,7 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
+from app.config import ASSET_VERSION
 from app.database import get_db
 from app.models import Album, Photo, Settings
 from app.power import consume_pending_action, request_action
@@ -16,6 +17,7 @@ from app.weather import get_weather
 
 router = APIRouter()
 templates = Jinja2Templates(directory="templates")
+templates.env.globals["asset_version"] = ASSET_VERSION
 
 
 def _get_settings(db: Session) -> Settings:

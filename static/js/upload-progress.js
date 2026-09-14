@@ -1,13 +1,12 @@
 (function () {
   "use strict";
-  // Barra de progreso simple para el form #upload-form (subida de fotos a un
-  // álbum). htmx 1.9.12 reenvía los eventos "progress" del XHR de subida como
-  // "htmx:xhr:progress" con detail.loaded/detail.total -- eso cubre la fase
-  // de transferencia. Una vez que loaded===total, la request sigue viva
-  // mientras el backend procesa (Pillow generando las 3 variantes), así que
-  // ese tramo se muestra como "Procesando..." hasta htmx:afterRequest.
-  var UPLOAD_FORM_ID = "upload-form";
-  var currentXhr = null;
+  // Sube las fotos de a una (no todas en un solo POST multipart) para poder
+  // mostrar "foto X de Y" y un progreso real, y para que "Cancelar" pueda
+  // cortar la cola entre archivos. Cada POST a /admin/photos ya devuelve el
+  // grid actualizado del álbum (ver _render_photo_grid en admin_router.py),
+  // así que cada foto aparece apenas termina de procesarse en el server.
+
+  var queue = null; // { files, index, total, albumId, cancelled, xhr }
 
   function els() {
     return {
@@ -19,66 +18,101 @@
 
   function show() {
     var e = els();
-    if (!e.container) return;
-    e.container.classList.remove("hidden");
-    if (e.fill) {
-      e.fill.style.width = "0%";
-      e.fill.classList.remove("is-indeterminate");
-    }
-    if (e.label) e.label.textContent = "Subiendo…";
+    if (e.container) e.container.classList.remove("hidden");
   }
 
   function hide() {
     var e = els();
     if (!e.container) return;
     e.container.classList.add("hidden");
-    if (e.fill) e.fill.classList.remove("is-indeterminate");
-    currentXhr = null;
+    if (e.fill) {
+      e.fill.style.width = "0%";
+      e.fill.classList.remove("is-indeterminate");
+    }
   }
 
-  document.body.addEventListener("htmx:beforeRequest", function (evt) {
-    if (evt.target.id !== UPLOAD_FORM_ID) return;
-    currentXhr = evt.detail.xhr;
-    show();
-  });
-
-  document.body.addEventListener("htmx:xhr:progress", function (evt) {
+  function setProgress(index, total, filePct, processing) {
     var e = els();
-    if (!e.container || e.container.classList.contains("hidden")) return;
-    var loaded = evt.detail.loaded;
-    var total = evt.detail.total;
-    if (!total) return;
-    var pct = Math.min(100, Math.round((loaded / total) * 100));
-    if (e.fill) e.fill.style.width = pct + "%";
-    if (pct >= 100) {
-      if (e.label) e.label.textContent = "Procesando…";
-      if (e.fill) e.fill.classList.add("is-indeterminate");
-    } else if (e.label) {
-      e.label.textContent = "Subiendo… " + pct + "%";
-    }
-  });
+    if (!e.fill || !e.label) return;
+    var overall = ((index - 1 + filePct) / total) * 100;
+    e.fill.style.width = Math.min(100, Math.max(0, Math.round(overall))) + "%";
+    e.fill.classList.toggle("is-indeterminate", processing);
+    var suffix = total > 1 ? " -- foto " + index + " de " + total : "";
+    e.label.textContent = processing
+      ? "Procesando…" + suffix
+      : "Subiendo… " + Math.round(filePct * 100) + "%" + suffix;
+  }
 
-  document.body.addEventListener("htmx:afterRequest", function (evt) {
-    if (evt.target.id !== UPLOAD_FORM_ID) return;
-    hide();
-  });
+  function swapGrid(html) {
+    if (!html) return;
+    var grid = document.getElementById("album-photo-grid") || document.getElementById("photo-grid");
+    if (!grid) return;
+    var id = grid.id;
+    grid.outerHTML = html;
+    // htmx solo procesa (activa hx-*) el contenido que ÉL mismo inserta; acá
+    // insertamos a mano, así que hay que pedirle explícitamente que lo revise.
+    var fresh = document.getElementById(id);
+    if (fresh && window.htmx) window.htmx.process(fresh);
+  }
 
-  document.body.addEventListener("htmx:responseError", function (evt) {
-    if (evt.target.id !== UPLOAD_FORM_ID) return;
+  function finish() {
+    queue = null;
     hide();
-  });
+  }
 
-  document.body.addEventListener("htmx:sendError", function (evt) {
-    if (evt.target.id !== UPLOAD_FORM_ID) return;
-    hide();
-  });
+  function uploadNext() {
+    if (!queue || queue.cancelled) return finish();
+    if (queue.index >= queue.total) return finish();
+
+    var file = queue.files[queue.index];
+    var displayIndex = queue.index + 1;
+    queue.index += 1;
+
+    var xhr = new XMLHttpRequest();
+    queue.xhr = xhr;
+
+    xhr.upload.addEventListener("progress", function (evt) {
+      if (!evt.lengthComputable || !queue || queue.cancelled) return;
+      setProgress(displayIndex, queue.total, evt.loaded / evt.total, evt.loaded >= evt.total);
+    });
+
+    xhr.addEventListener("load", function () {
+      if (!queue || queue.cancelled) return;
+      if (xhr.status >= 200 && xhr.status < 300) {
+        swapGrid(xhr.responseText);
+      }
+      uploadNext();
+    });
+
+    xhr.addEventListener("error", uploadNext);
+    xhr.addEventListener("abort", function () {}); // el cleanup lo hace cancelUpload()
+
+    var formData = new FormData();
+    formData.append("album_id", String(queue.albumId));
+    formData.append("files", file);
+    setProgress(displayIndex, queue.total, 0, false);
+    xhr.open("POST", "/admin/photos");
+    xhr.send(formData);
+  }
+
+  function cancelUpload() {
+    if (!queue) return;
+    if (!window.confirm("¿Cancelar la subida en curso?")) return;
+    queue.cancelled = true;
+    if (queue.xhr) queue.xhr.abort();
+    finish();
+  }
+
+  window.pfUploadFiles = function (fileList, albumId) {
+    var files = Array.prototype.slice.call(fileList || []);
+    if (!files.length) return;
+    queue = { files: files, index: 0, total: files.length, albumId: albumId, cancelled: false, xhr: null };
+    show();
+    uploadNext();
+  };
 
   document.addEventListener("click", function (evt) {
     if (evt.target.id !== "upload-cancel-btn") return;
-    if (!currentXhr) return;
-    if (window.confirm("¿Cancelar la subida en curso?")) {
-      currentXhr.abort();
-      hide();
-    }
+    cancelUpload();
   });
 })();
