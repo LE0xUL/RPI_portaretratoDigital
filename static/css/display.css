@@ -57,6 +57,38 @@ body.transition-slide .layer.active {
   transform: translateX(0);
 }
 
+body.transition-slide-up .layer {
+  transition: transform 700ms ease-in-out, opacity 700ms ease-in-out;
+  transform: translateY(100%);
+}
+body.transition-slide-up .layer.active {
+  transform: translateY(0);
+}
+
+body.transition-zoom-in .layer {
+  transition: transform 900ms ease-in-out, opacity 900ms ease-in-out;
+  transform: scale(0.88);
+}
+body.transition-zoom-in .layer.active {
+  transform: scale(1);
+}
+
+body.transition-zoom-out .layer {
+  transition: transform 900ms ease-in-out, opacity 900ms ease-in-out;
+  transform: scale(1.15);
+}
+body.transition-zoom-out .layer.active {
+  transform: scale(1);
+}
+
+body.transition-blur .layer {
+  transition: filter 900ms ease-in-out, opacity 900ms ease-in-out;
+  filter: blur(24px);
+}
+body.transition-blur .layer.active {
+  filter: blur(0);
+}
+
 body.transition-none .layer {
   transition: none;
 }

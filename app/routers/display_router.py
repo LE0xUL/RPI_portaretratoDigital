@@ -72,7 +72,9 @@ def display_state(db: Session = Depends(get_db)):
         "settings": {
             "slideshow_interval_seconds": settings_row.slideshow_interval_seconds,
             "slideshow_order": settings_row.slideshow_order,
-            "transition_effect": settings_row.transition_effect,
+            "transition_effects": [
+                e for e in (settings_row.transition_effect or "fade").split(",") if e
+            ],
             "image_fit": settings_row.image_fit,
             "display_orientation": settings_row.display_orientation,
             "show_clock": settings_row.show_clock,

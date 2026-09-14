@@ -20,13 +20,34 @@
       </select>
     </label>
 
-    <label>Transición
-      <select name="transition_effect">
-        <option value="fade" {% if settings.transition_effect == "fade" %}selected{% endif %}>Fade</option>
-        <option value="slide" {% if settings.transition_effect == "slide" %}selected{% endif %}>Slide</option>
-        <option value="none" {% if settings.transition_effect == "none" %}selected{% endif %}>Ninguna</option>
-      </select>
-    </label>
+    {% set current_effects = settings.transition_effect.split(',') %}
+    <div class="transition-field">
+      <span class="transition-field-label">Transición</span>
+      <div class="transition-grid" id="transition-grid">
+        {% for key, label in [
+          ("fade", "Fundido"),
+          ("slide", "Deslizar"),
+          ("slide-up", "Deslizar hacia arriba"),
+          ("zoom-in", "Acercar"),
+          ("zoom-out", "Alejar"),
+          ("blur", "Desenfoque"),
+          ("none", "Ninguna"),
+        ] %}
+        <label class="checkbox-label transition-option">
+          <input type="checkbox" name="transition_effects" value="{{ key }}" {% if key in current_effects %}checked{% endif %}>
+          {{ label }}
+        </label>
+        {% endfor %}
+      </div>
+      <p class="muted transition-hint">
+        Elegí una o varias (o todas). Con más de una seleccionada, el display sortea
+        al azar cuál usar en cada cambio de foto.
+      </p>
+      <button type="button" class="button-link"
+              onclick="document.querySelectorAll('#transition-grid input').forEach(c => c.checked = true)">
+        Seleccionar todas
+      </button>
+    </div>
 
     <label>Ajuste de imagen
       <select name="image_fit">

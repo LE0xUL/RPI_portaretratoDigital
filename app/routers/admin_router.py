@@ -13,6 +13,8 @@ from app.routers.display_router import _active_photos
 router = APIRouter(prefix="/admin", dependencies=[Depends(require_admin)])
 templates = Jinja2Templates(directory="templates")
 
+TRANSITION_EFFECTS = {"none", "fade", "slide", "slide-up", "zoom-in", "zoom-out", "blur"}
+
 
 def _get_settings(db: Session) -> Settings:
     settings_row = db.get(Settings, 1)
@@ -224,7 +226,7 @@ def update_settings(
     request: Request,
     slideshow_interval_seconds: int = Form(15),
     slideshow_order: str = Form("sequential"),
-    transition_effect: str = Form("fade"),
+    transition_effects: list[str] = Form([]),
     image_fit: str = Form("cover"),
     display_orientation: str = Form("landscape"),
     show_clock: bool = Form(False),
@@ -242,7 +244,8 @@ def update_settings(
     settings_row = _get_settings(db)
     settings_row.slideshow_interval_seconds = slideshow_interval_seconds
     settings_row.slideshow_order = slideshow_order
-    settings_row.transition_effect = transition_effect
+    valid_effects = [e for e in transition_effects if e in TRANSITION_EFFECTS]
+    settings_row.transition_effect = ",".join(valid_effects) if valid_effects else "fade"
     settings_row.image_fit = image_fit
     settings_row.display_orientation = display_orientation
     settings_row.show_clock = show_clock

@@ -22,13 +22,31 @@
   let settings = {
     slideshow_interval_seconds: 15,
     slideshow_order: "sequential",
-    transition_effect: "fade",
+    transition_effects: ["fade"],
     image_fit: "cover",
     display_orientation: "landscape",
     show_clock: true,
     show_date: true,
     show_weather: false,
   };
+
+  const TRANSITION_CLASSES = [
+    "transition-none",
+    "transition-fade",
+    "transition-slide",
+    "transition-slide-up",
+    "transition-zoom-in",
+    "transition-zoom-out",
+    "transition-blur",
+  ];
+
+  function pickTransition() {
+    const list =
+      settings.transition_effects && settings.transition_effects.length
+        ? settings.transition_effects
+        : ["fade"];
+    return list[Math.floor(Math.random() * list.length)];
+  }
 
   let lastPhotosVersion = null;
   let lastSettingsVersion = null;
@@ -39,8 +57,6 @@
     body.classList.toggle("fit-contain", settings.image_fit === "contain");
     body.classList.toggle("orientation-landscape", settings.display_orientation === "landscape");
     body.classList.toggle("orientation-portrait", settings.display_orientation === "portrait");
-    body.classList.remove("transition-fade", "transition-slide", "transition-none");
-    body.classList.add("transition-" + settings.transition_effect);
 
     overlayClock.classList.toggle("hidden", !settings.show_clock);
     overlayDate.classList.toggle("hidden", !settings.show_date);
@@ -71,6 +87,8 @@
         inactiveLayer.classList.remove("active");
         return;
       }
+      body.classList.remove(...TRANSITION_CLASSES);
+      body.classList.add("transition-" + pickTransition());
       requestAnimationFrame(() => {
         inactiveLayer.classList.add("active");
         activeLayer.classList.remove("active");

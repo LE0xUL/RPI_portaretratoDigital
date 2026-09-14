@@ -149,7 +149,7 @@ def test_settings_roundtrip(admin_client):
         data={
             "slideshow_interval_seconds": 30,
             "slideshow_order": "random",
-            "transition_effect": "slide",
+            "transition_effects": ["slide", "zoom-in"],
             "image_fit": "contain",
             "display_orientation": "portrait",
             "show_clock": "on",
@@ -168,10 +168,43 @@ def test_settings_roundtrip(admin_client):
     state = admin_client.get("/api/display/state").json()
     assert state["settings"]["slideshow_interval_seconds"] == 30
     assert state["settings"]["slideshow_order"] == "random"
-    assert state["settings"]["transition_effect"] == "slide"
+    assert state["settings"]["transition_effects"] == ["slide", "zoom-in"]
     assert state["settings"]["image_fit"] == "contain"
     assert state["settings"]["display_orientation"] == "portrait"
     assert state["settings"]["show_weather"] is True
+
+
+def test_settings_transition_effects_defaults_to_fade_if_none_selected(admin_client):
+    resp = admin_client.post(
+        "/admin/settings",
+        data={
+            "slideshow_interval_seconds": 15,
+            "slideshow_order": "sequential",
+            "image_fit": "cover",
+            "display_orientation": "landscape",
+            "weather_units": "metric",
+        },
+    )
+    assert resp.status_code == 200
+    state = admin_client.get("/api/display/state").json()
+    assert state["settings"]["transition_effects"] == ["fade"]
+
+
+def test_settings_transition_effects_ignores_unknown_values(admin_client):
+    resp = admin_client.post(
+        "/admin/settings",
+        data={
+            "slideshow_interval_seconds": 15,
+            "slideshow_order": "sequential",
+            "transition_effects": ["fade", "not-a-real-effect"],
+            "image_fit": "cover",
+            "display_orientation": "landscape",
+            "weather_units": "metric",
+        },
+    )
+    assert resp.status_code == 200
+    state = admin_client.get("/api/display/state").json()
+    assert state["settings"]["transition_effects"] == ["fade"]
 
 
 def test_settings_with_empty_optional_number_fields(admin_client):
@@ -182,7 +215,6 @@ def test_settings_with_empty_optional_number_fields(admin_client):
         data={
             "slideshow_interval_seconds": 15,
             "slideshow_order": "sequential",
-            "transition_effect": "fade",
             "image_fit": "cover",
             "display_orientation": "landscape",
             "weather_latitude": "",
@@ -202,7 +234,6 @@ def test_weather_endpoint_returns_204_without_coordinates(admin_client):
         data={
             "slideshow_interval_seconds": 15,
             "slideshow_order": "sequential",
-            "transition_effect": "fade",
             "image_fit": "cover",
             "display_orientation": "landscape",
             "show_weather": "on",

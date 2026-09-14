@@ -664,6 +664,22 @@ button:disabled { opacity: .5; cursor: not-allowed; }
   margin: .6rem 0;
   color: var(--ink);
 }
+
+.transition-field { margin: 1rem 0 .4rem; }
+.transition-field-label {
+  display: block;
+  font-size: .88rem;
+  color: var(--ink-soft);
+  margin-bottom: .5rem;
+}
+.transition-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: .3rem .9rem;
+  max-width: 560px;
+}
+.transition-option { margin: .25rem 0; font-size: .88rem; }
+.transition-hint { font-size: .78rem; margin: .6rem 0 .5rem; max-width: 480px; }
 .settings-form .checkbox-label input { margin-top: 0; }
 .settings-form > button { align-self: flex-start; }
 

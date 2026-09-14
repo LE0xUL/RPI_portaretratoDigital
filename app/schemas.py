@@ -12,7 +12,7 @@ class PhotoOut(BaseModel):
 class SettingsOut(BaseModel):
     slideshow_interval_seconds: int
     slideshow_order: str
-    transition_effect: str
+    transition_effects: list[str]
     image_fit: str
     display_orientation: str
     show_clock: bool
