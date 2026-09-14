@@ -100,4 +100,30 @@
 
   <button type="submit">Guardar configuración</button>
 </form>
+
+<fieldset class="power-fieldset">
+  <legend>Control remoto</legend>
+  <p class="muted">
+    Las mismas acciones que el menú táctil de <code>/display</code> (3 toques en la
+    esquina superior izquierda), para no tener que acercarte a la pantalla. Requiere
+    tener instalado <code>kiosk-setup/install.sh</code> en la Raspberry Pi -- si no,
+    el pedido queda encolado sin efecto.
+  </p>
+  <div class="power-controls">
+    <button type="button" class="btn btn-ghost" data-power-action="hide" data-hide-seconds="120">
+      Ocultar kiosco 2 min
+    </button>
+    <button type="button" class="btn btn-ghost"
+            data-power-action="reboot"
+            data-confirm="¿Reiniciar la Raspberry Pi?">
+      Reiniciar
+    </button>
+    <button type="button" class="btn btn-danger"
+            data-power-action="shutdown"
+            data-confirm="¿Apagar la Raspberry Pi? Vas a tener que desenchufarla y volver a enchufarla para prenderla de nuevo.">
+      Apagar
+    </button>
+  </div>
+  <p class="muted" id="power-feedback" role="status" aria-live="polite"></p>
+</fieldset>
 {% endblock %}
