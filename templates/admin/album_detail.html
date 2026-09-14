@@ -52,6 +52,16 @@
         <span>Arrastrá fotos acá, o hacé clic para elegirlas</span>
       </label>
     </form>
+
+    <div id="upload-progress" class="upload-progress hidden" role="status" aria-live="polite">
+      <div class="upload-progress-bar">
+        <div class="upload-progress-fill" id="upload-progress-fill"></div>
+      </div>
+      <div class="upload-progress-row">
+        <span id="upload-progress-label">Subiendo…</span>
+        <button type="button" class="button-link" id="upload-cancel-btn">Cancelar</button>
+      </div>
+    </div>
   {% endif %}
 
   {% include "admin/_album_photo_grid.html" %}
