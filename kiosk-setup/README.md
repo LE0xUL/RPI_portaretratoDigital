@@ -87,6 +87,9 @@ esa USB para otras cosas también, pensalo antes de instalarlo.
 ```bash
 cd kiosk-setup
 ./install-usb-import.sh
+
+# Para ver qué está haciendo:
+journalctl --user -u photoframe-usb-import.service -f
 ```
 
 Cómo funciona: `usb-import.py` corre como servicio (`photoframe-usb-import.service`) y cada 15s

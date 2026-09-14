@@ -1,18 +1,69 @@
 {% extends "base.html" %}
 {% block body %}
 <div class="admin-shell">
-  <nav class="admin-nav">
-    <span class="brand">🖼️ Portarretrato</span>
-    <a href="/admin/photos">Fotos</a>
-    <a href="/admin/albums">Álbumes</a>
-    <a href="/admin/settings">Configuración</a>
-    <a href="/display" target="_blank">Ver display ↗</a>
-    <form method="post" action="/logout" class="logout-form">
-      <button type="submit">Salir</button>
-    </form>
-  </nav>
+  <header class="admin-topbar">
+    <a class="brand" href="/admin/photos">
+      <span class="brand-mark" aria-hidden="true">
+        <svg viewBox="0 0 32 32" width="22" height="22" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect x="3" y="3" width="26" height="26" rx="3" stroke="currentColor" stroke-width="2"/>
+          <circle cx="12" cy="13" r="3.2" stroke="currentColor" stroke-width="2"/>
+          <path d="M5 24l7-7 4 4 5-6 6 9" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+        </svg>
+      </span>
+      <span class="brand-word">Portarretrato</span>
+    </a>
+
+    <nav class="admin-nav" aria-label="Navegación principal">
+      <a href="/admin/photos" class="tab {% if request.url.path.startswith('/admin/photos') %}is-active{% endif %}">
+        <svg class="tab-icon" viewBox="0 0 24 24" width="20" height="20" fill="none"><rect x="3" y="5" width="18" height="14" rx="2" stroke="currentColor" stroke-width="1.6"/><circle cx="9" cy="10.5" r="1.8" stroke="currentColor" stroke-width="1.6"/><path d="M4 17l5-5 3.5 3.5L17 11l3 4" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"/></svg>
+        <span>Fotos</span>
+      </a>
+      <a href="/admin/albums" class="tab {% if request.url.path.startswith('/admin/albums') %}is-active{% endif %}">
+        <svg class="tab-icon" viewBox="0 0 24 24" width="20" height="20" fill="none"><path d="M4 7a2 2 0 0 1 2-2h4l2 2h6a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>
+        <span>Álbumes</span>
+      </a>
+      <a href="/admin/settings" class="tab {% if request.url.path.startswith('/admin/settings') %}is-active{% endif %}">
+        <svg class="tab-icon" viewBox="0 0 24 24" width="20" height="20" fill="none"><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.6"/><path d="M12 3v2.2M12 18.8V21M21 12h-2.2M5.2 12H3M18.4 5.6l-1.6 1.6M7.2 16.8l-1.6 1.6M18.4 18.4l-1.6-1.6M7.2 7.2 5.6 5.6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+        <span>Config</span>
+      </a>
+      <a href="/display" target="_blank" class="tab">
+        <svg class="tab-icon" viewBox="0 0 24 24" width="20" height="20" fill="none"><rect x="3" y="4" width="18" height="12" rx="1.5" stroke="currentColor" stroke-width="1.6"/><path d="M8 20h8M12 16v4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+        <span>Display</span>
+      </a>
+    </nav>
+
+    <div class="topbar-actions">
+      <button type="button" class="theme-toggle" data-theme-toggle aria-label="Cambiar entre tema claro y oscuro" title="Cambiar tema">
+        <svg class="icon-sun" viewBox="0 0 24 24" width="18" height="18" fill="none"><circle cx="12" cy="12" r="4.2" stroke="currentColor" stroke-width="1.7"/><path d="M12 2.5v2.4M12 19.1v2.4M4.2 4.2l1.7 1.7M18.1 18.1l1.7 1.7M2.5 12h2.4M19.1 12h2.4M4.2 19.8l1.7-1.7M18.1 5.9l1.7-1.7" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+        <svg class="icon-moon" viewBox="0 0 24 24" width="18" height="18" fill="none"><path d="M20 14.5A8.5 8.5 0 1 1 9.5 4a6.8 6.8 0 0 0 10.5 10.5z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>
+      </button>
+      <form method="post" action="/logout" class="logout-form">
+        <button type="submit" class="btn btn-ghost btn-sm">Salir</button>
+      </form>
+    </div>
+  </header>
+
   <main class="admin-main">
     {% block admin_content %}{% endblock %}
   </main>
+
+  <nav class="admin-tabbar" aria-label="Navegación móvil">
+    <a href="/admin/photos" class="tab {% if request.url.path.startswith('/admin/photos') %}is-active{% endif %}">
+      <svg class="tab-icon" viewBox="0 0 24 24" width="21" height="21" fill="none"><rect x="3" y="5" width="18" height="14" rx="2" stroke="currentColor" stroke-width="1.6"/><circle cx="9" cy="10.5" r="1.8" stroke="currentColor" stroke-width="1.6"/><path d="M4 17l5-5 3.5 3.5L17 11l3 4" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"/></svg>
+      <span>Fotos</span>
+    </a>
+    <a href="/admin/albums" class="tab {% if request.url.path.startswith('/admin/albums') %}is-active{% endif %}">
+      <svg class="tab-icon" viewBox="0 0 24 24" width="21" height="21" fill="none"><path d="M4 7a2 2 0 0 1 2-2h4l2 2h6a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>
+      <span>Álbumes</span>
+    </a>
+    <a href="/admin/settings" class="tab {% if request.url.path.startswith('/admin/settings') %}is-active{% endif %}">
+      <svg class="tab-icon" viewBox="0 0 24 24" width="21" height="21" fill="none"><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.6"/><path d="M12 3v2.2M12 18.8V21M21 12h-2.2M5.2 12H3M18.4 5.6l-1.6 1.6M7.2 16.8l-1.6 1.6M18.4 18.4l-1.6-1.6M7.2 7.2 5.6 5.6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+      <span>Config</span>
+    </a>
+    <a href="/display" target="_blank" class="tab">
+      <svg class="tab-icon" viewBox="0 0 24 24" width="21" height="21" fill="none"><rect x="3" y="4" width="18" height="12" rx="1.5" stroke="currentColor" stroke-width="1.6"/><path d="M8 20h8M12 16v4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+      <span>Display</span>
+    </a>
+  </nav>
 </div>
 {% endblock %}

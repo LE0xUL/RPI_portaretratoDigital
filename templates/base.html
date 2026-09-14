@@ -2,11 +2,26 @@
 <html lang="es">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="color-scheme" content="light dark">
+  <meta name="theme-color" content="#f6f1e7" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#16120e" media="(prefers-color-scheme: dark)">
   <title>{% block title %}Portarretrato Digital{% endblock %}</title>
+  <script>
+    (function () {
+      var stored = null;
+      try { stored = localStorage.getItem("pf-theme"); } catch (e) {}
+      if (stored === "light" || stored === "dark") {
+        document.documentElement.setAttribute("data-theme", stored);
+      }
+    })();
+  </script>
+  <link rel="preload" href="/static/fonts/Fraunces-Variable.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="/static/fonts/fonts.css">
   <link rel="stylesheet" href="/static/css/admin.css">
   <script src="/static/js/vendor/htmx.min.js" defer></script>
   <script src="/static/js/vendor/alpine.min.js" defer></script>
+  <script src="/static/js/theme.js" defer></script>
   {% block extra_head %}{% endblock %}
 </head>
 <body>
