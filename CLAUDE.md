@@ -56,19 +56,44 @@ otherwise. New protected admin routes just need `dependencies=[Depends(require_a
 router; no per-route auth code needed. Sessions are signed cookies (`itsdangerous`, 1-year max-age,
 no server-side session store) — "logging in" just means holding a valid signed cookie.
 
-### Data model: `Album.is_active`, not a foreign key
+### Data model: every photo belongs to exactly one album
 
-Which photos are "on screen" is driven by `Album.is_active` (boolean on each album), not a single
-`Settings.active_album_id`. Multiple albums can be active at once. If **no** album is active,
-`/display` falls back to showing the entire photo library. This fallback logic lives in
-`app/routers/display_router.py::_active_photos()` — any change to album/photo selection needs to
-preserve that fallback or the display goes blank.
+`Photo.album_id` is a required FK (one-to-many, not the many-to-many `album_photos` table this used
+to be). A photo can't exist without an album; "moving" a photo between albums is just reassigning
+`album_id` (`PATCH /admin/photos/{id}/album` in `app/routers/admin_router.py`). Deleting a local
+album requires it to be empty first (move or delete its photos) — there's no longer an "orphan
+bucket" to fall back into, so the delete endpoint blocks with an error instead of silently
+cascading.
 
-### Photos are stored as three JPEG variants
+Which photos are "on screen" is still driven by `Album.is_active` (boolean on each album, multiple
+albums can be active at once). If **no** album is active, `/display` falls back to showing the
+entire photo library — this fallback logic lives in `app/routers/display_router.py::_active_photos()`
+and must be preserved or the display goes blank. On top of that, a photo is excluded from "active"
+if its album is tied to a currently-disconnected USB volume (`Album.connected`) — *unless* the photo
+already has a local copy (`Photo.has_original`), since the whole point of "copiar a la biblioteca"
+is that it survives the drive being unplugged. See the USB section below.
+
+`/admin/photos` (the "Fotos" tab) reuses this exact same `_active_photos()` query — it shows what's
+actually on the display right now, not every photo ever uploaded. Uploading requires picking an
+album first (`album_id` is a required form field on `POST /admin/photos`); there's no more
+album-less generic upload — the upload form lives on each album's own detail page.
+
+### Photos are stored as three JPEG variants (usually)
 
 `app/image_utils.py::save_upload()` normalizes every upload (EXIF orientation fix, non-JPEG →
 JPEG) and writes three sibling files sharing one UUID filename under `data/photos/{original,display,thumb}/`.
-Deleting a photo (`delete_photo_files()`) must remove all three.
+Deleting a photo (`delete_photo_files()`) must remove all three (`missing_ok=True`, safe even if one
+never existed).
+
+Photos registered from a USB drive (`Photo.source == "usb"`) are the exception: until the user
+copies them to the library, only `display`+`thumb` exist (`Photo.has_original = False`) — see the
+USB section below. `save_upload`/`save_variants`/`promote_to_original` all share the same
+normalize-then-write-selected-subdirs logic in `image_utils.py`; if you touch the resize/quality
+constants (`DISPLAY_MAX`, `THUMB_MAX`, `JPEG_QUALITY`), it affects all three call sites.
+
+Known limitation: the image-file filter (used both by the admin upload's `accept` attribute and the
+USB daemon's folder scan) doesn't include `.heic`/`.heif` (the default format for iPhone photos),
+and Pillow can't decode those without the separate `pillow-heif` plugin, which isn't installed.
 
 ### `/display` is a polling client, not push-based
 
@@ -119,21 +144,41 @@ that file before its normal 5-second auto-relaunch and sleeps until the timestam
 of `/display` (LAN-only, and physical access to the touchscreen already means physical access to
 the Pi's power cable).
 
-### USB auto-import reuses the existing upload endpoint, no new backend code
+### USB auto-import creates temporary albums, never copies originals up front
 
-`kiosk-setup/usb-import.sh` (optional, installed separately via `install-usb-import.sh`, not part
+`kiosk-setup/usb-import.py` (optional, installed separately via `install-usb-import.sh`, not part
 of the main `install.sh`) is a fourth instance of the Docker/host boundary: Docker can't see USB
-drives the desktop mounts after the container started, so this is a host-side loop that scans
-`/media/*/*` and `/mnt/*` every 15s and uploads new image files by literally driving the same
-HTTP flow a browser would — `POST /login` with `INVITE_CODE` read live from `.env`, then
-`POST /admin/photos` with a cookie jar. Dedup is by `sha256sum`, tracked in
-`~/.local/state/photoframe/usb-imported.tsv` (host-side state, deliberately outside `data/` since
-it's the script's own bookkeeping, not app data). **Non-obvious gotcha**: `AdminAuthRequired`
-responds with a 303 redirect (not 4xx) for non-HTMX requests, so checking success via `curl -f`
-silently lies — a 303 "succeeds" from curl's point of view even though nothing was uploaded. Both
-`login()` and `upload_file()` in that script must check the exact HTTP status code
-(`curl -s -o /dev/null -w '%{http_code}'`) instead. If you add more host scripts that call
-authenticated endpoints, replicate that pattern, not a bare `curl -f`.
+drives the desktop mounts after the container started. Unlike the old `usb-import.sh` (which
+uploaded every photo immediately), this daemon polls every 15s and sends the backend a lightweight
+JSON "heartbeat" — which USB volumes are connected (identified by filesystem UUID via
+`findmnt`+`blkid`, never the OS-assigned volume label, which isn't stable or unique across
+devices) and which image files exist in which folders, metadata only, no bytes. `POST
+/admin/usb/heartbeat` in `app/routers/usb_router.py` upserts a `UsbVolume` row per drive, creates
+one `Album` per photo-containing folder the first time it's seen (matched afterwards by
+`(usb_volume_id, source_relpath)`, active immediately), and tells the daemon which files still need
+uploading and which photos have a pending "copy to library" request.
+
+The daemon then uploads each new/changed file to `POST /admin/usb/photos`, which generates only
+`display`+`thumb` variants (`image_utils.save_variants(..., subdirs=("display", "thumb"))`) and
+**never writes an "original"** — `Photo.has_original` stays `False`. The original bytes are
+discarded after generating those two derivatives; only when the user explicitly clicks "copiar a la
+biblioteca" (single photo or whole album, from the album's detail page) does the flow continue: the
+backend marks `Photo.copy_requested_at`, the next heartbeat tells the daemon to re-read the real
+file from the still-connected drive, and it POSTs the actual bytes to
+`/admin/usb/photos/{id}/copy-complete`, which runs the full original+display+thumb pipeline and
+flips `has_original=True`. If the drive gets unplugged before that happens, the request just waits
+— no timeout, matching the one-shot pending-action style already used in `app/power.py`, except
+this one is durable (stored as DB columns, not in-memory) since it has to survive a container
+restart while waiting for the drive to come back.
+
+Dedup is server-side now (by `(album_id, source_relpath)`, refreshed if `source_size`/`source_mtime`
+change) instead of the old host-side `sha256sum` file — the daemon carries no local state beyond the
+session cookie jar. **Non-obvious gotcha, still applies**: `AdminAuthRequired` responds with a 303
+redirect (not 4xx) for non-HTMX requests, so checking success via a redirect-following HTTP client
+silently lies — the daemon's `_NoRedirect` handler in `usb-import.py` (a stdlib `urllib` opener that
+refuses to follow redirects) exists specifically so `login()` can see the real 303/401 status code
+instead of whatever the followed redirect's page returns. If you add more host scripts that call
+authenticated endpoints, replicate that pattern, not a redirect-following client.
 
 ### Environment settings are read at import time
 
@@ -148,9 +193,21 @@ inside a fixture — fixtures run too late, after collection-time imports alread
 
 ### No Alembic
 
-`Base.metadata.create_all()` on startup is the only migration mechanism. A schema change is applied
-by deleting `data/db/photoframe.db` and letting it recreate — acceptable for a single-user hobby
-deployment, but worth knowing before assuming migrations exist.
+`Base.metadata.create_all()` on startup is the default migration mechanism — for a brand new
+install, deleting `data/db/photoframe.db` and letting it recreate is still the way to apply a
+schema change, and still acceptable for a single-user hobby deployment.
+
+The one exception is `app/migrations.py::migrate_legacy_schema()`, called from `main.py`'s
+`lifespan` **before** `create_all()` (order matters: `create_all()` never alters an existing table).
+It's a guarded, one-time raw-`sqlite3` migration (deliberately not going through the SQLAlchemy
+engine/pool — rebuilding `albums` to drop a `UNIQUE` constraint needs `PRAGMA foreign_keys=OFF`,
+and leaving that pragma flipped on a pooled connection the app reuses later would silently disable
+referential integrity checking for the rest of the process's life) that detects the pre-single-album
+schema (absence of `photos.album_id`), backs up the `.db` file first, then backfills every photo
+into a real album and drops the old `album_photos` table. If you need another structural change
+that can't be expressed as a fresh `create_all()`, follow this same shape: raw connection, own
+transaction, backup before mutating, guarded by checking for the post-migration state so it only
+ever runs once.
 
 ### Pinned dependency quirk
 

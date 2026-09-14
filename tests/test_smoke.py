@@ -10,6 +10,19 @@ def _fake_jpeg(color) -> bytes:
     return buf.getvalue()
 
 
+def _create_album(client, name: str) -> int:
+    resp = client.post("/admin/albums", data={"name": name})
+    # order_by(created_at.desc()) -> el álbum recién creado aparece primero
+    matches = re.findall(r'hx-patch="/admin/albums/(\d+)"', resp.text)
+    assert matches, resp.text
+    return int(matches[0])
+
+
+def _activate_album(client, album_id: int) -> None:
+    resp = client.patch(f"/admin/albums/{album_id}", data={"is_active": "on"})
+    assert resp.status_code == 200
+
+
 def test_display_page_is_public(client):
     resp = client.get("/display")
     assert resp.status_code == 200
@@ -28,54 +41,106 @@ def test_login_wrong_code_rejected(client):
     assert "pf_session" not in resp.cookies
 
 
-def test_upload_list_and_delete_photo(admin_client):
+def test_upload_without_album_rejected(admin_client):
     resp = admin_client.post(
         "/admin/photos",
+        files=[("files", ("a.jpg", _fake_jpeg("red"), "image/jpeg"))],
+    )
+    assert resp.status_code == 422
+
+
+def test_upload_list_and_delete_photo(admin_client):
+    album_id = _create_album(admin_client, "Cumple")
+    resp = admin_client.post(
+        "/admin/photos",
+        data={"album_id": album_id},
         files=[("files", ("a.jpg", _fake_jpeg("red"), "image/jpeg"))],
     )
     assert resp.status_code == 200
     assert "photo-card" in resp.text
 
+    _activate_album(admin_client, album_id)
     state = admin_client.get("/api/display/state").json()
-    assert len(state["photos"]) == 1
-    photo_id = state["photos"][0]["id"]
+    photo_ids_before = {p["id"] for p in state["photos"]}
 
-    resp = admin_client.delete(f"/admin/photos/{photo_id}")
+    resp = admin_client.get(f"/admin/albums/{album_id}")
+    album_photo_ids = [int(m) for m in re.findall(r'/admin/photos/(\d+)\?', resp.text)]
+    assert len(album_photo_ids) == 1
+    photo_id = album_photo_ids[0]
+    assert photo_id in photo_ids_before
+
+    resp = admin_client.delete(f"/admin/photos/{photo_id}?from_album_id={album_id}")
     assert resp.status_code == 200
 
     state = admin_client.get("/api/display/state").json()
-    assert len(state["photos"]) == 0
+    assert photo_id not in {p["id"] for p in state["photos"]}
 
 
 def test_albums_filter_display_state(admin_client):
+    album_a = _create_album(admin_client, "Familia A")
+    album_b = _create_album(admin_client, "Familia B")
+
     admin_client.post(
         "/admin/photos",
-        files=[
-            ("files", ("a.jpg", _fake_jpeg("blue"), "image/jpeg")),
-            ("files", ("b.jpg", _fake_jpeg("green"), "image/jpeg")),
-        ],
+        data={"album_id": album_a},
+        files=[("files", ("a.jpg", _fake_jpeg("blue"), "image/jpeg"))],
     )
-    photo_ids = [p["id"] for p in admin_client.get("/api/display/state").json()["photos"]]
-    assert len(photo_ids) >= 2
+    admin_client.post(
+        "/admin/photos",
+        data={"album_id": album_b},
+        files=[("files", ("b.jpg", _fake_jpeg("green"), "image/jpeg"))],
+    )
 
-    resp = admin_client.post("/admin/albums", data={"name": "Familia"})
+    _activate_album(admin_client, album_a)
+
+    state = admin_client.get("/api/display/state").json()
+    photo_a_ids = {
+        int(m)
+        for m in re.findall(r'/admin/photos/(\d+)\?', admin_client.get(f"/admin/albums/{album_a}").text)
+    }
+    assert photo_a_ids
+    assert {p["id"] for p in state["photos"]} & photo_a_ids == photo_a_ids
+
+    photo_b_ids = {
+        int(m)
+        for m in re.findall(r'/admin/photos/(\d+)\?', admin_client.get(f"/admin/albums/{album_b}").text)
+    }
+    assert not ({p["id"] for p in state["photos"]} & photo_b_ids)
+
+
+def test_move_photo_between_albums(admin_client):
+    source = _create_album(admin_client, "Origen")
+    target = _create_album(admin_client, "Destino")
+
+    admin_client.post(
+        "/admin/photos",
+        data={"album_id": source},
+        files=[("files", ("a.jpg", _fake_jpeg("red"), "image/jpeg"))],
+    )
+    resp = admin_client.get(f"/admin/albums/{source}")
+    photo_id = int(re.findall(r'/admin/photos/(\d+)\?', resp.text)[0])
+
+    resp = admin_client.patch(
+        f"/admin/photos/{photo_id}/album?from_album_id={source}", data={"album_id": target}
+    )
     assert resp.status_code == 200
-    match = re.search(r'hx-patch="/admin/albums/(\d+)"', resp.text)
-    assert match, resp.text
-    album_id = int(match.group(1))
 
-    # Asociar solo una foto y activar el álbum -> el display debe filtrar por esa foto
-    admin_client.post(f"/admin/albums/{album_id}/photos/{photo_ids[0]}")
-    admin_client.patch(f"/admin/albums/{album_id}", data={"is_active": "on"})
+    assert f"/admin/photos/{photo_id}?" not in admin_client.get(f"/admin/albums/{source}").text
+    assert f"/admin/photos/{photo_id}?" in admin_client.get(f"/admin/albums/{target}").text
 
-    state = admin_client.get("/api/display/state").json()
-    assert [p["id"] for p in state["photos"]] == [photo_ids[0]]
 
-    # Desactivar el álbum (checkbox no enviado, como haría un navegador real) ->
-    # fallback a la librería completa
-    admin_client.patch(f"/admin/albums/{album_id}", data={})
-    state = admin_client.get("/api/display/state").json()
-    assert set(p["id"] for p in state["photos"]) == set(photo_ids)
+def test_delete_nonempty_local_album_blocked(admin_client):
+    album_id = _create_album(admin_client, "Con fotos")
+    admin_client.post(
+        "/admin/photos",
+        data={"album_id": album_id},
+        files=[("files", ("a.jpg", _fake_jpeg("red"), "image/jpeg"))],
+    )
+    resp = admin_client.delete(f"/admin/albums/{album_id}")
+    assert resp.status_code == 200
+    assert "tiene fotos" in resp.text
+    # sigue existiendo
+    assert admin_client.get(f"/admin/albums/{album_id}").status_code == 200
 
 
 def test_settings_roundtrip(admin_client):

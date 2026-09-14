@@ -78,10 +78,10 @@ cd kiosk-setup
 ./uninstall.sh
 ```
 
-## Auto-import de fotos por USB (opcional)
+## Detección automática de USB (opcional)
 
 Esto **no** se instala con `install.sh` — es aparte, a propósito: una vez activo, cualquier USB
-que conectes a la Pi va a tener sus fotos subidas automáticamente a la biblioteca. Si vas a usar
+que conectes a la Pi va a generar álbumes temporales con sus fotos en el dashboard. Si vas a usar
 esa USB para otras cosas también, pensalo antes de instalarlo.
 
 ```bash
@@ -89,18 +89,21 @@ cd kiosk-setup
 ./install-usb-import.sh
 ```
 
-Cómo funciona: `usb-import.sh` corre como servicio (`photoframe-usb-import.service`) y cada 15s
+Cómo funciona: `usb-import.py` corre como servicio (`photoframe-usb-import.service`) y cada 15s
 revisa `/media/<usuario>/*` y `/mnt/*` (donde Raspberry Pi OS Desktop automonta las USB) buscando
-`.jpg/.jpeg/.png/.bmp/.tiff/.webp`. Los archivos nuevos se suben vía el mismo endpoint que usa el
-panel admin (`POST /admin/photos`, autenticándose con el `INVITE_CODE` de tu `.env`), quedan
-etiquetados como `USB-<nombre del volumen>__<nombre original>` para que se note de dónde vinieron,
-y **no se borra nada de la USB**. Para no re-subir lo mismo cada vez que reconectás el mismo
-pendrive, se guarda un historial de checksums en `~/.local/state/photoframe/usb-imported.tsv`.
+`.jpg/.jpeg/.png/.bmp/.tiff/.webp`. **No sube ni copia nada por su cuenta**: identifica cada unidad
+por el UUID de su filesystem (`blkid`, no el label) y le avisa al backend qué carpetas/archivos
+encontró; el backend crea un álbum activo por cada carpeta con fotos (si ya existía, lo reconoce y
+recupera su configuración anterior — activo/inactivo, etc.) y genera solo una vista previa
+(display+thumb) de cada foto nueva, nunca el archivo original. Desde "Álbumes" en el panel podés
+copiar fotos sueltas o el álbum completo a la biblioteca (ahí sí se guarda el original) cuando
+quieras; si la unidad se desconecta antes de eso, esas fotos sin copiar se ocultan del display hasta
+que se vuelva a conectar.
 
 Como todo lo demás acá, esto también cruza la frontera Docker→host: el contenedor no ve unidades
 montadas después de que arrancó (salvo configuración especial y frágil de propagación de mounts),
-así que el script vive en el host y sube los archivos por HTTP, igual que si los arrastraras vos
-al panel admin.
+así que el script vive en el host y habla con el backend por HTTP, igual que el resto del panel
+admin.
 
 Para desactivarlo:
 ```bash

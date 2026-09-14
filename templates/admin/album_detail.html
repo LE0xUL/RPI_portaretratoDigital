@@ -7,7 +7,53 @@
 {% else %}
   <a href="/admin/albums" class="back-link">← Álbumes</a>
   <h1>{{ album.name }}</h1>
-  <p class="muted">Tocá una foto para agregarla o quitarla de este álbum.</p>
+
+  {% if album.usb_volume_id %}
+    {% if album.connected %}
+      <span class="badge badge--ok">USB conectada</span>
+    {% else %}
+      <span class="badge badge--off">USB desconectada</span>
+    {% endif %}
+    <p class="muted">
+      Álbum gestionado automáticamente desde una unidad USB. Las fotos marcadas
+      "sin copia local" se pierden si se desconecta la unidad antes de copiarlas
+      a la biblioteca.
+    </p>
+    {% if move_targets %}
+    <form class="inline-form"
+          hx-post="/admin/usb/albums/{{ album.id }}/copy"
+          hx-target="#album-photo-grid"
+          hx-swap="outerHTML">
+      <select name="target_album_id">
+        <option value="">(copiar sin mover de este álbum)</option>
+        {% for a in move_targets %}
+          <option value="{{ a.id }}">{{ a.name }}</option>
+        {% endfor %}
+      </select>
+      <button type="submit">Copiar álbum completo a la biblioteca</button>
+    </form>
+    {% endif %}
+  {% else %}
+    <form id="upload-form"
+          hx-post="/admin/photos"
+          hx-target="#album-photo-grid"
+          hx-swap="outerHTML"
+          hx-encoding="multipart/form-data"
+          x-data="{ dragging: false }"
+          @dragover.prevent="dragging = true"
+          @dragleave.prevent="dragging = false"
+          @drop.prevent="dragging = false; $refs.fileInput.files = $event.dataTransfer.files; htmx.trigger('#upload-form', 'submit')"
+          class="dropzone"
+          :class="{ 'dropzone--active': dragging }">
+      <input type="hidden" name="album_id" value="{{ album.id }}">
+      <label>
+        <input type="file" name="files" multiple accept="image/*" x-ref="fileInput"
+               @change="htmx.trigger('#upload-form', 'submit')" hidden>
+        <span>Arrastrá fotos acá, o hacé clic para elegirlas</span>
+      </label>
+    </form>
+  {% endif %}
+
   {% include "admin/_album_photo_grid.html" %}
 {% endif %}
 {% endblock %}

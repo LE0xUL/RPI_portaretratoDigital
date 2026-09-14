@@ -47,3 +47,42 @@ class PowerActionIn(BaseModel):
 class PowerStatusOut(BaseModel):
     action: Literal["shutdown", "reboot", "hide"] | None
     hide_seconds: int | None = None
+
+
+class UsbHeartbeatFile(BaseModel):
+    relpath: str
+    size: int
+    mtime: float
+
+
+class UsbHeartbeatFolder(BaseModel):
+    relpath: str
+    files: list[UsbHeartbeatFile]
+
+
+class UsbHeartbeatVolume(BaseModel):
+    fs_uuid: str
+    label: str | None = None
+    folders: list[UsbHeartbeatFolder]
+
+
+class UsbHeartbeatIn(BaseModel):
+    volumes: list[UsbHeartbeatVolume]
+
+
+class UsbNewFileOut(BaseModel):
+    fs_uuid: str
+    album_id: int
+    relpath: str
+
+
+class UsbPendingCopyOut(BaseModel):
+    fs_uuid: str
+    photo_id: int
+    album_id: int
+    source_relpath: str
+
+
+class UsbHeartbeatOut(BaseModel):
+    new_files: list[UsbNewFileOut]
+    pending_copies: list[UsbPendingCopyOut]

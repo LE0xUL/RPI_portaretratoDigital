@@ -1,6 +1,8 @@
+{% set grid_id = "photo-grid" %}
+{% set from_album_id = None %}
 <div id="photo-grid" class="photo-grid">
   {% if not photos %}
-    <p class="muted">Todavía no subiste ninguna foto.</p>
+    <p class="muted">No hay fotos activas para mostrar (activá un álbum en "Álbumes").</p>
   {% endif %}
   {% for photo in photos %}
     {% include "admin/_photo_card.html" %}

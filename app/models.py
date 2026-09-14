@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Integer, String, Table, Column
+from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
@@ -15,12 +15,20 @@ def _uuid() -> str:
     return uuid.uuid4().hex
 
 
-album_photos = Table(
-    "album_photos",
-    Base.metadata,
-    Column("album_id", ForeignKey("albums.id", ondelete="CASCADE"), primary_key=True),
-    Column("photo_id", ForeignKey("photos.id", ondelete="CASCADE"), primary_key=True),
-)
+class UsbVolume(Base):
+    """Una unidad USB reconocida por el UUID de su filesystem (no por su label,
+    que no es estable entre reconexiones ni único entre dispositivos)."""
+
+    __tablename__ = "usb_volumes"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    fs_uuid: Mapped[str] = mapped_column(String, unique=True)
+    label: Mapped[str | None] = mapped_column(String, nullable=True)
+    first_seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    last_seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, onupdate=_now)
+    connected: Mapped[bool] = mapped_column(Boolean, default=True)
+
+    albums: Mapped[list["Album"]] = relationship(back_populates="usb_volume")
 
 
 class Photo(Base):
@@ -34,8 +42,22 @@ class Photo(Base):
     file_size_bytes: Mapped[int] = mapped_column(Integer)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
 
-    albums: Mapped[list["Album"]] = relationship(
-        secondary=album_photos, back_populates="photos"
+    album_id: Mapped[int] = mapped_column(ForeignKey("albums.id"), nullable=False)
+    album: Mapped["Album"] = relationship(back_populates="photos", foreign_keys=[album_id])
+
+    # Proveniencia: fotos "usb" pueden no tener el original guardado todavía
+    # (has_original=False), solo variantes display/thumb generadas al vuelo.
+    source: Mapped[str] = mapped_column(String, default="local")  # "local" | "usb"
+    has_original: Mapped[bool] = mapped_column(Boolean, default=True)
+    source_relpath: Mapped[str | None] = mapped_column(String, nullable=True)
+    source_size: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    source_mtime: Mapped[float | None] = mapped_column(Float, nullable=True)
+
+    # "Copiar a la biblioteca" es un pedido que solo el daemon del host puede
+    # cumplir (necesita leer el archivo real desde la USB). Ver app/routers/usb_router.py.
+    copy_requested_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    pending_target_album_id: Mapped[int | None] = mapped_column(
+        ForeignKey("albums.id", ondelete="SET NULL"), nullable=True
     )
 
 
@@ -43,13 +65,22 @@ class Album(Base):
     __tablename__ = "albums"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    name: Mapped[str] = mapped_column(String, unique=True)
+    # Sin unique=True: álbumes USB se identifican por (usb_volume_id, source_relpath),
+    # no por nombre, y carpetas como "DCIM" se repiten entre dispositivos.
+    name: Mapped[str] = mapped_column(String)
     is_active: Mapped[bool] = mapped_column(Boolean, default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
 
     photos: Mapped[list["Photo"]] = relationship(
-        secondary=album_photos, back_populates="albums"
+        back_populates="album", foreign_keys="Photo.album_id"
     )
+
+    usb_volume_id: Mapped[int | None] = mapped_column(ForeignKey("usb_volumes.id"), nullable=True)
+    usb_volume: Mapped["UsbVolume | None"] = relationship(back_populates="albums")
+    source_relpath: Mapped[str | None] = mapped_column(String, nullable=True)
+    # Denormalizado desde usb_volume.connected para no hacer join en _active_photos().
+    # Se actualiza siempre junto con UsbVolume.connected, nunca por separado.
+    connected: Mapped[bool] = mapped_column(Boolean, default=True)
 
 
 class Settings(Base):

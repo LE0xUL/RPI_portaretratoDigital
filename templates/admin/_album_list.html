@@ -1,4 +1,10 @@
 <div id="album-list" class="album-list">
+  {% if error %}
+    <p class="error">{{ error }}</p>
+  {% endif %}
+  {% if pending_copy_count %}
+    <p class="muted">{{ pending_copy_count }} foto(s) esperando reconexión de USB para copiarse a la biblioteca.</p>
+  {% endif %}
   {% if not albums %}
     <p class="muted">Todavía no creaste ningún álbum.</p>
   {% endif %}
@@ -9,14 +15,22 @@
       <input type="checkbox" name="is_active" {% if album.is_active %}checked{% endif %}>
       Activo
     </label>
+    {% if album.usb_volume_id %}
+      {% if album.connected %}
+        <span class="badge badge--ok">USB conectada</span>
+      {% else %}
+        <span class="badge badge--off">USB desconectada</span>
+      {% endif %}
+    {% endif %}
     <span class="muted">{{ album.photos|length }} foto(s)</span>
     <button type="submit">Guardar</button>
     <a class="button-link" href="/admin/albums/{{ album.id }}">Gestionar fotos</a>
     <button type="button" class="danger"
+            {% if album.usb_volume_id and album.connected %}disabled title="Desconectá la unidad USB antes de borrar este álbum"{% endif %}
             hx-delete="/admin/albums/{{ album.id }}"
             hx-target="#album-list"
             hx-swap="outerHTML"
-            hx-confirm="¿Borrar el álbum &quot;{{ album.name }}&quot;? Las fotos no se borran.">
+            hx-confirm="¿Borrar el álbum &quot;{{ album.name }}&quot;?{% if not album.usb_volume_id %} Tiene que estar vacío -- moveilas o borralas antes.{% else %} Se van a borrar sus fotos sin copia local a la biblioteca.{% endif %}">
       Borrar álbum
     </button>
   </form>

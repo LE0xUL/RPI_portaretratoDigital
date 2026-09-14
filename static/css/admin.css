@@ -131,6 +131,28 @@ a { color: var(--accent); text-decoration: none; }
   box-shadow: 0 0 0 2px var(--accent) inset;
 }
 
+.badge {
+  display: inline-block;
+  font-size: 0.7rem;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  margin-bottom: 0.35rem;
+}
+.badge--warn { background: #fff3cd; color: #8a6100; }
+.badge--ok { background: #e6f4ea; color: #1a7f37; }
+.badge--off { background: #f1f1f1; color: var(--muted); }
+.inline-form-tight {
+  display: flex;
+  gap: 0.35rem;
+  margin-bottom: 0.35rem;
+}
+.inline-form-tight select {
+  flex: 1;
+  font-size: 0.8rem;
+  min-width: 0;
+}
+button:disabled { opacity: 0.5; cursor: not-allowed; }
+
 button {
   font: inherit;
 }

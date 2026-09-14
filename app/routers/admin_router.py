@@ -8,6 +8,7 @@ from app.auth import require_admin
 from app.database import get_db
 from app.image_utils import delete_photo_files, save_upload
 from app.models import Album, Photo, Settings
+from app.routers.display_router import _active_photos
 
 router = APIRouter(prefix="/admin", dependencies=[Depends(require_admin)])
 templates = Jinja2Templates(directory="templates")
@@ -23,16 +24,58 @@ def _get_settings(db: Session) -> Settings:
     return settings_row
 
 
+def _pending_copy_count(db: Session) -> int:
+    return len(db.scalars(select(Photo.id).where(Photo.copy_requested_at.is_not(None))).all())
+
+
+def _local_albums(db: Session) -> list[Album]:
+    """Álbumes válidos como destino de upload/mover -- nunca los de USB, que
+    el daemon del host gestiona en exclusiva vía app/routers/usb_router.py."""
+    return list(
+        db.scalars(select(Album).where(Album.usb_volume_id.is_(None)).order_by(Album.name)).all()
+    )
+
+
+def _render_photo_grid(request: Request, db: Session, from_album_id: int | None):
+    """Re-renderiza el grid correcto según de dónde vino la acción: el grid de
+    un álbum puntual (desde su página de detalle) o el de fotos activas
+    (desde la sección "Fotos")."""
+    if from_album_id is not None:
+        album = db.get(Album, from_album_id)
+        if album is None:
+            return templates.TemplateResponse(
+                request, "admin/_photo_grid.html", {"photos": _active_photos(db), "move_targets": _local_albums(db)}
+            )
+        return templates.TemplateResponse(
+            request,
+            "admin/_album_photo_grid.html",
+            {"album": album, "photos": album.photos, "move_targets": _local_albums(db)},
+        )
+    return templates.TemplateResponse(
+        request, "admin/_photo_grid.html", {"photos": _active_photos(db), "move_targets": _local_albums(db)}
+    )
+
+
 # ---------- Fotos ----------
 
 @router.get("/photos", response_class=HTMLResponse)
 def photos_page(request: Request, db: Session = Depends(get_db)):
-    photos = db.scalars(select(Photo).order_by(Photo.created_at.desc())).all()
-    return templates.TemplateResponse(request, "admin/photos.html", {"photos": photos})
+    photos = _active_photos(db)
+    return templates.TemplateResponse(
+        request, "admin/photos.html", {"photos": photos, "move_targets": _local_albums(db)}
+    )
 
 
 @router.post("/photos", response_class=HTMLResponse)
-def upload_photos(request: Request, files: list[UploadFile], db: Session = Depends(get_db)):
+def upload_photos(
+    request: Request,
+    files: list[UploadFile],
+    album_id: int = Form(...),
+    db: Session = Depends(get_db),
+):
+    album = db.get(Album, album_id)
+    if album is None or album.usb_volume_id is not None:
+        return HTMLResponse("Álbum inválido para subir fotos.", status_code=400)
     for upload in files:
         filename, width, height, size_bytes = save_upload(upload.file)
         db.add(
@@ -42,22 +85,47 @@ def upload_photos(request: Request, files: list[UploadFile], db: Session = Depen
                 width=width,
                 height=height,
                 file_size_bytes=size_bytes,
+                album_id=album.id,
             )
         )
     db.commit()
-    photos = db.scalars(select(Photo).order_by(Photo.created_at.desc())).all()
-    return templates.TemplateResponse(request, "admin/_photo_grid.html", {"photos": photos})
+    return _render_photo_grid(request, db, from_album_id=album.id)
+
+
+@router.patch("/photos/{photo_id}/album", response_class=HTMLResponse)
+def move_photo(
+    request: Request,
+    photo_id: int,
+    album_id: int = Form(...),
+    from_album_id: int | None = None,
+    db: Session = Depends(get_db),
+):
+    photo = db.get(Photo, photo_id)
+    target = db.get(Album, album_id)
+    if (
+        photo is not None
+        and target is not None
+        and target.usb_volume_id is None
+        and photo.has_original
+    ):
+        photo.album_id = target.id
+        db.commit()
+    return _render_photo_grid(request, db, from_album_id)
 
 
 @router.delete("/photos/{photo_id}", response_class=HTMLResponse)
-def delete_photo(request: Request, photo_id: int, db: Session = Depends(get_db)):
+def delete_photo(
+    request: Request,
+    photo_id: int,
+    from_album_id: int | None = None,
+    db: Session = Depends(get_db),
+):
     photo = db.get(Photo, photo_id)
     if photo is not None:
         delete_photo_files(photo.filename)
         db.delete(photo)
         db.commit()
-    photos = db.scalars(select(Photo).order_by(Photo.created_at.desc())).all()
-    return templates.TemplateResponse(request, "admin/_photo_grid.html", {"photos": photos})
+    return _render_photo_grid(request, db, from_album_id)
 
 
 # ---------- Álbumes ----------
@@ -65,7 +133,9 @@ def delete_photo(request: Request, photo_id: int, db: Session = Depends(get_db))
 @router.get("/albums", response_class=HTMLResponse)
 def albums_page(request: Request, db: Session = Depends(get_db)):
     albums = db.scalars(select(Album).order_by(Album.created_at.desc())).all()
-    return templates.TemplateResponse(request, "admin/albums.html", {"albums": albums})
+    return templates.TemplateResponse(
+        request, "admin/albums.html", {"albums": albums, "pending_copy_count": _pending_copy_count(db)}
+    )
 
 
 @router.post("/albums", response_class=HTMLResponse)
@@ -73,7 +143,11 @@ def create_album(request: Request, name: str = Form(...), db: Session = Depends(
     db.add(Album(name=name.strip()))
     db.commit()
     albums = db.scalars(select(Album).order_by(Album.created_at.desc())).all()
-    return templates.TemplateResponse(request, "admin/_album_list.html", {"albums": albums})
+    return templates.TemplateResponse(
+        request,
+        "admin/_album_list.html",
+        {"albums": albums, "error": None, "pending_copy_count": _pending_copy_count(db)},
+    )
 
 
 @router.patch("/albums/{album_id}", response_class=HTMLResponse)
@@ -91,63 +165,49 @@ def update_album(
         album.is_active = is_active
         db.commit()
     albums = db.scalars(select(Album).order_by(Album.created_at.desc())).all()
-    return templates.TemplateResponse(request, "admin/_album_list.html", {"albums": albums})
+    return templates.TemplateResponse(
+        request,
+        "admin/_album_list.html",
+        {"albums": albums, "error": None, "pending_copy_count": _pending_copy_count(db)},
+    )
 
 
 @router.delete("/albums/{album_id}", response_class=HTMLResponse)
 def delete_album(request: Request, album_id: int, db: Session = Depends(get_db)):
     album = db.get(Album, album_id)
+    error = None
     if album is not None:
-        db.delete(album)
-        db.commit()
+        if album.usb_volume_id is not None and album.connected:
+            error = 'Desconectá la unidad USB antes de borrar el álbum "{}".'.format(album.name)
+        elif album.usb_volume_id is None and len(album.photos) > 0:
+            error = 'El álbum "{}" tiene fotos. Moveilas o borralas antes de borrar el álbum.'.format(
+                album.name
+            )
+        else:
+            for photo in list(album.photos):
+                delete_photo_files(photo.filename)
+                db.delete(photo)
+            db.delete(album)
+            db.commit()
     albums = db.scalars(select(Album).order_by(Album.created_at.desc())).all()
-    return templates.TemplateResponse(request, "admin/_album_list.html", {"albums": albums})
+    return templates.TemplateResponse(
+        request,
+        "admin/_album_list.html",
+        {"albums": albums, "error": error, "pending_copy_count": _pending_copy_count(db)},
+    )
 
 
 @router.get("/albums/{album_id}", response_class=HTMLResponse)
 def album_detail(request: Request, album_id: int, db: Session = Depends(get_db)):
     album = db.get(Album, album_id)
-    photos = db.scalars(select(Photo).order_by(Photo.created_at.desc())).all()
-    member_ids = {p.id for p in album.photos} if album else set()
     return templates.TemplateResponse(
         request,
         "admin/album_detail.html",
-        {"album": album, "photos": photos, "member_ids": member_ids},
-    )
-
-
-@router.post("/albums/{album_id}/photos/{photo_id}", response_class=HTMLResponse)
-def add_photo_to_album(
-    request: Request, album_id: int, photo_id: int, db: Session = Depends(get_db)
-):
-    album = db.get(Album, album_id)
-    photo = db.get(Photo, photo_id)
-    if album is not None and photo is not None and photo not in album.photos:
-        album.photos.append(photo)
-        db.commit()
-    return _album_detail_response(request, db, album_id)
-
-
-@router.delete("/albums/{album_id}/photos/{photo_id}", response_class=HTMLResponse)
-def remove_photo_from_album(
-    request: Request, album_id: int, photo_id: int, db: Session = Depends(get_db)
-):
-    album = db.get(Album, album_id)
-    photo = db.get(Photo, photo_id)
-    if album is not None and photo is not None and photo in album.photos:
-        album.photos.remove(photo)
-        db.commit()
-    return _album_detail_response(request, db, album_id)
-
-
-def _album_detail_response(request: Request, db: Session, album_id: int):
-    album = db.get(Album, album_id)
-    photos = db.scalars(select(Photo).order_by(Photo.created_at.desc())).all()
-    member_ids = {p.id for p in album.photos} if album else set()
-    return templates.TemplateResponse(
-        request,
-        "admin/_album_photo_grid.html",
-        {"album": album, "photos": photos, "member_ids": member_ids},
+        {
+            "album": album,
+            "photos": album.photos if album else [],
+            "move_targets": _local_albums(db),
+        },
     )
 
 

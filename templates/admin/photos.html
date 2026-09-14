@@ -2,26 +2,7 @@
 {% block title %}Fotos — Portarretrato{% endblock %}
 {% block admin_content %}
 <h1>Fotos</h1>
+<p class="muted">Estas son las fotos de los álbumes activados -- lo que se está mostrando ahora en el display. Para subir fotos nuevas, entrá a un álbum en "Álbumes".</p>
 
-<form id="upload-form"
-      hx-post="/admin/photos"
-      hx-target="#photo-grid"
-      hx-swap="outerHTML"
-      hx-encoding="multipart/form-data"
-      x-data="{ dragging: false }"
-      @dragover.prevent="dragging = true"
-      @dragleave.prevent="dragging = false"
-      @drop.prevent="dragging = false; $refs.fileInput.files = $event.dataTransfer.files; htmx.trigger('#upload-form', 'submit')"
-      class="dropzone"
-      :class="{ 'dropzone--active': dragging }">
-  <label>
-    <input type="file" name="files" multiple accept="image/*" x-ref="fileInput"
-           @change="htmx.trigger('#upload-form', 'submit')" hidden>
-    <span>Arrastrá fotos acá, o hacé clic para elegirlas</span>
-  </label>
-</form>
-
-<div id="photo-grid">
-  {% include "admin/_photo_grid.html" %}
-</div>
+{% include "admin/_photo_grid.html" %}
 {% endblock %}

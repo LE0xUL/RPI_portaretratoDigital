@@ -1,9 +1,37 @@
 <figure class="photo-card">
   <img src="/media/photos/thumb/{{ photo.filename }}.jpg" alt="{{ photo.original_filename }}" loading="lazy">
   <figcaption>
+    {% if not photo.has_original %}
+      <span class="badge badge--warn" title="Solo hay vista previa; si se desconecta la USB antes de copiarla, se pierde.">Sin copia local — en USB</span>
+      <form class="inline-form-tight"
+            hx-post="/admin/usb/photos/{{ photo.id }}/copy{% if from_album_id %}?from_album_id={{ from_album_id }}{% endif %}"
+            hx-target="#{{ grid_id }}"
+            hx-swap="outerHTML">
+        {% if move_targets %}
+        <select name="target_album_id">
+          <option value="">(copiar sin mover)</option>
+          {% for a in move_targets %}
+            <option value="{{ a.id }}">{{ a.name }}</option>
+          {% endfor %}
+        </select>
+        {% endif %}
+        <button type="submit">Copiar a la biblioteca</button>
+      </form>
+    {% elif move_targets %}
+      <form class="inline-form-tight"
+            hx-patch="/admin/photos/{{ photo.id }}/album{% if from_album_id %}?from_album_id={{ from_album_id }}{% endif %}"
+            hx-target="#{{ grid_id }}"
+            hx-swap="outerHTML">
+        <select name="album_id" onchange="this.form.requestSubmit()">
+          {% for a in move_targets %}
+            <option value="{{ a.id }}" {% if a.id == photo.album_id %}selected{% endif %}>{{ a.name }}</option>
+          {% endfor %}
+        </select>
+      </form>
+    {% endif %}
     <button class="danger"
-            hx-delete="/admin/photos/{{ photo.id }}"
-            hx-target="#photo-grid"
+            hx-delete="/admin/photos/{{ photo.id }}{% if from_album_id %}?from_album_id={{ from_album_id }}{% endif %}"
+            hx-target="#{{ grid_id }}"
             hx-swap="outerHTML"
             hx-confirm="¿Borrar esta foto?">
       Borrar

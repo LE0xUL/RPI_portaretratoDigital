@@ -1,24 +1,10 @@
+{% set grid_id = "album-photo-grid" %}
+{% set from_album_id = album.id if album else None %}
 <div id="album-photo-grid" class="photo-grid">
   {% if not photos %}
-    <p class="muted">No hay fotos en la biblioteca todavía.</p>
+    <p class="muted">Este álbum todavía no tiene fotos.</p>
   {% endif %}
   {% for photo in photos %}
-    {% set is_member = photo.id in member_ids %}
-    <figure class="photo-card {% if is_member %}photo-card--selected{% endif %}">
-      <img src="/media/photos/thumb/{{ photo.filename }}.jpg" alt="{{ photo.original_filename }}" loading="lazy">
-      <figcaption>
-        {% if is_member %}
-          <button hx-delete="/admin/albums/{{ album.id }}/photos/{{ photo.id }}"
-                  hx-target="#album-photo-grid" hx-swap="outerHTML">
-            ✓ En el álbum
-          </button>
-        {% else %}
-          <button hx-post="/admin/albums/{{ album.id }}/photos/{{ photo.id }}"
-                  hx-target="#album-photo-grid" hx-swap="outerHTML">
-            Agregar
-          </button>
-        {% endif %}
-      </figcaption>
-    </figure>
+    {% include "admin/_photo_card.html" %}
   {% endfor %}
 </div>
