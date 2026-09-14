@@ -49,6 +49,26 @@ Ingresá el `INVITE_CODE`, subí fotos, creá un álbum y marcalo como activo (o
 para mostrar la biblioteca completa). La sesión queda guardada ~1 año, así que no te lo va a volver
 a pedir seguido.
 
+## Acceso externo vía Cloudflare Tunnel (opcional)
+
+Si querés administrar el panel o ver `/display` desde fuera de tu LAN sin abrir puertos en el
+router, el `docker-compose.yml` incluye un servicio `cloudflared` que corre junto al backend.
+
+1. En [Cloudflare Zero Trust](https://one.dash.cloudflare.com/) → Networks → Tunnels, creá un
+   tunnel de tipo "Cloudflared" y copiá el token que te da (el de la pestaña Docker/instalación).
+2. En ese mismo tunnel, agregá un Public Hostname que apunte a `http://photoframe:8080` (el nombre
+   del servicio en la red interna de Docker Compose, no `localhost`).
+3. Pegá el token en `.env`:
+   ```
+   CLOUDFLARE_TUNNEL_TOKEN=eyJ...
+   ```
+4. `docker compose up -d --build` (o `docker compose up -d cloudflared` si el backend ya estaba corriendo).
+
+**Importante**: esto expone el panel admin completo al público, protegido únicamente por el
+`INVITE_CODE` (no hay usuarios ni rate-limiting). Usá un `INVITE_CODE` largo y random antes de
+exponerlo, y considerá restringir el acceso por Cloudflare Access (política de email/OTP) si querés
+una capa extra, ya que el backend en sí no la provee.
+
 ## Modo kiosk (solo en la Raspberry Pi)
 
 Una vez que el contenedor está corriendo y accesible en `http://localhost:8080`, en la propia

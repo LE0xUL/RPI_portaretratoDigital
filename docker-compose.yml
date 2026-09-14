@@ -11,3 +11,11 @@ services:
       - .env
     environment:
       - TZ=${TZ:-UTC}
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: photoframe-cloudflared
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run --token ${CLOUDFLARE_TUNNEL_TOKEN}
+    depends_on:
+      - photoframe
